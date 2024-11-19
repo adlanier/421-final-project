@@ -3,8 +3,6 @@ import express from "express";
 import pkg from "pg";
 dotenv.config();
 
-
-
 const { Pool } = pkg;
 
 const pool = new Pool({
@@ -26,20 +24,65 @@ pool
 
 // TODO: Uncomment this after we figure out and add schema.
 
-//(async () => {
-//  try {
-//    await pool.query(`
-//    CREATE TABLES HERE!!!
-//
-//
-//
-//
-//    `);
-//    console.log("Tables created successfully");
-//  } catch(error){
-//    console.error("Error creating tables:", error);
-//  }
-//})();
+(async () => {
+ try {
+   await pool.query(`
+    
+   CREATE TABLE teams (
+       id SERIAL PRIMARY KEY,
+       name VARCHAR(255) NOT NULL,
+       division INT NOT NULL, 
+       wins INT NOT NULL DEFAULT 0,
+       losses INT NOT NULL DEFAULT 0,
+       top_25 BOOLEAN, 
+       rank INT,
+   );
+
+   CREATE TABLE players (
+       id SERIAL PRIMARY KEY,
+       name VARCHAR(255) NOT NULL,
+       position VARCHAR(255),
+       jersey_num INT CHECK (jersey_num BETWEEN 0 AND 99),
+       height_ft FLOAT,
+       weight_lbs FLOAT,
+       class INT CHECK (class >= 2016),
+       injured BOOLEAN DEFAULT FALSE,
+       team_id INT REFERENCES teams(id) ON DELETE CASCADE,
+    );
+
+    CREATE TABLE games (
+       id SERIAL PRIMARY KEY,
+       scheduled_date DATE NOT NULL, 
+       location VARCHAR(255),
+       home_score INT NOT NULL, 
+       away_score INT NOT NULL, 
+       home_team_id INT REFERENCES teams(id) ON DELETE CASCADE,
+       away_team_id INT REFERENCES teams(id) ON DELETE CASCADE,
+    ); 
+
+    CREATE TABLE statistics (
+        id SERIAL PRIMARY KEY,
+        points INT DEFAULT 0,
+        assists INT DEFAULT 0,
+        rebounds INT DEFAULT 0,
+        steals INT DEFAULT 0,
+        blocks INT DEFAULT 0,
+        minutes INT DEFAULT 0,
+        fouls INT DEFAULT 0,
+        turnovers INT DEFAULT 0,
+        fg_pct FLOAT DEFAULT 0.0,
+        three_p_pct FLOAT DEFAULT 0.0,
+        ft_pct FLOAT DEFAULT 0.0,
+        player_id INT REFERENCES players(id) ON DELETE CASCADE,
+        game_id INT REFERENCES games(id) ON DELETE CASCADE,
+    );
+
+   `);
+   console.log("Tables created successfully");
+ } catch(error){
+   console.error("Error creating tables:", error);
+ }
+})();
 
 
 
