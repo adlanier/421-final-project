@@ -28,17 +28,17 @@ pool
  try {
    await pool.query(`
     
-   CREATE TABLE teams (
+   CREATE TABLE IF NOT EXISTS teams (
        id SERIAL PRIMARY KEY,
        name VARCHAR(255) NOT NULL,
        division INT NOT NULL, 
        wins INT NOT NULL DEFAULT 0,
        losses INT NOT NULL DEFAULT 0,
        top_25 BOOLEAN, 
-       rank INT,
+       rank INT
    );
 
-   CREATE TABLE players (
+   CREATE TABLE IF NOT EXISTS players (
        id SERIAL PRIMARY KEY,
        name VARCHAR(255) NOT NULL,
        position VARCHAR(255),
@@ -47,20 +47,20 @@ pool
        weight_lbs REAL,
        class INT CHECK (class >= 2016),
        injured BOOLEAN DEFAULT FALSE,
-       team_id INT REFERENCES teams(id) ON DELETE CASCADE,
+       team_id INT REFERENCES teams(id) ON DELETE CASCADE
     );
 
-    CREATE TABLE games (
+    CREATE TABLE IF NOT EXISTS games (
        id SERIAL PRIMARY KEY,
        scheduled_date DATE NOT NULL, 
        location VARCHAR(255),
        home_score INT NOT NULL, 
        away_score INT NOT NULL, 
        home_team_id INT REFERENCES teams(id) ON DELETE CASCADE,
-       away_team_id INT REFERENCES teams(id) ON DELETE CASCADE,
-    ); 
+       away_team_id INT REFERENCES teams(id) ON DELETE CASCADE
+    );
 
-    CREATE TABLE statistics (
+    CREATE TABLE IF NOT EXISTS statistics (
         id SERIAL PRIMARY KEY,
         points INT DEFAULT 0,
         assists INT DEFAULT 0,
@@ -74,7 +74,7 @@ pool
         three_p_pct REAL DEFAULT 0.0,
         ft_pct REAL DEFAULT 0.0,
         player_id INT REFERENCES players(id) ON DELETE CASCADE,
-        game_id INT REFERENCES games(id) ON DELETE CASCADE,
+        game_id INT REFERENCES games(id) ON DELETE CASCADE
     );
 
    `);
@@ -107,18 +107,295 @@ app.use(express.json());
 //);
 
 
-// Endpoint to delete a record
-app.delete("/delete-record/:id", async (req, res) => {
+// Endpoint to delete a player
+app.delete("/delete-player/:id", async (req, res) => {
   //TODO: The record's id that we are deleting should be in the request parameters
   const { id } = req.params;
 
   try {
-    const result = await pool.query("DELETE FROM table WHERE id = $1", [id]);
-    res.status(200).json({ message: "Record deleted successfully" })
+    const result = await pool.query("DELETE FROM players WHERE id = $1", [id]);
+
+    if (result.rowCount === 0){
+      return res.status(404).json({ error: "Player not found" });
+    }
+    res.status(200).json({ message: "Player deleted successfully" })
 
   } catch(err){
     console.log(err);
-    res.status(500).json({ error: "Unable to delete record" })
+    res.status(500).json({ error: "Unable to delete player" })
+  }
+});
+
+// Endpoint to delete a team
+app.delete("/delete-team/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query("DELETE FROM teams WHERE id = $1", [id]);
+
+    if (result.rowCount === 0){
+      return res.status(404).json({ error: "Team not found" });
+    }
+    res.status(200).json({ message: "Team deleted successfully" })
+
+  } catch(err){
+    console.log(err);
+    res.status(500).json({ error: "Unable to delete team" })
+  }
+});
+
+
+// Endpoint to add a team
+app.post("/add-team", async (req, res) => {
+  try {
+    const { name, division, wins, losses, top_25, rank } = req.body;
+
+    if (!name || !division){
+      return res.status(400).json({ error: "Name and division are required" });
+    }
+
+    const result = await pool.query(`
+      INSERT INTO teams (name, division, wins, losses, top_25, rank)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *`,
+      [name, division, wins || 0, losses || 0, top_25 || false, rank || null]
+    );
+
+    res.status(201).json({ 
+      message: "Team added successfully",
+      team: result.rows[0]
+    });
+  } catch (err){
+    console.log(err);
+    res.status(500).json({ error: "Unable to add team" })
+  }
+});
+
+// Endpoint to add a player
+app.post("/add-player", async (req, res) => {
+  try {
+    const { 
+      name, 
+      position, 
+      jersey_num, 
+      height_ft, 
+      weight_lbs, 
+      class: playerClass, 
+      injured, 
+      team_id 
+    } = req.body;
+    
+
+    if (!name) {
+      return res.status(400).json({ error: "Name is required" });
+    }
+
+    if (jersey_num !== undefined && (typeof jersey_num !== 'number' || jersey_num < 0 || jersey_num > 99)) {
+      return res.status(400).json({ error: "Jersey number must be an integer between 0 and 99." });
+    }
+
+    if (playerClass !== undefined && (typeof playerClass !== 'number' || playerClass < 2016)) {
+      return res.status(400).json({ error: "Class must be an integer of 2016 or later." });
+    }
+
+    if (team_id !== undefined && (typeof team_id !== 'number' || team_id <= 0)) {
+      return res.status(400).json({ error: "team_id must be a positive integer." });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO players (name, position, jersey_num, height_ft, weight_lbs, class, injured, team_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *`,
+      [
+        name,
+        position || null,
+        jersey_num !== undefined ? jersey_num : null,
+        height_ft !== undefined ? height_ft : null,
+        weight_lbs !== undefined ? weight_lbs : null,
+        playerClass !== undefined ? playerClass : null,
+        injured !== undefined ? injured : false, 
+        team_id !== undefined ? team_id : null
+      ]
+    );
+
+    res.status(201).json({ 
+      message: "Player added successfully",
+      player: result.rows[0]
+    });
+  } catch (err){
+    console.log(err);
+
+    // SQL Error code: Foreign key violation
+    if (err.code === '23503') { 
+      return res.status(400).json({ error: "Invalid team_id. The referenced team does not exist." });
+    }
+    res.status(500).json({ error: "Unable to add player" })
+  }
+});
+
+
+app.post("/add-game", async (req, res) => {
+  try {
+    const {
+      scheduled_date,
+      location,
+      home_score,
+      away_score,
+      home_team_id,
+      away_team_id
+    } = req.body;
+
+    if (
+      !scheduled_date ||
+      home_score === undefined ||
+      away_score === undefined ||
+      !home_team_id || !away_team_id
+    ){
+      return res.status(400).json({
+        error: "Scheduled date, home_score, away_score, home_team_id, and away_team_id are required fields."
+      });
+    }
+
+    const result = await pool.query(
+      `
+      INSERT INTO games (scheduled_date, location, home_score, away_score, home_team_id, away_team_id)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *
+      `,
+      [
+        scheduled_date,
+        location || null,
+        home_score,
+        away_score,
+        home_team_id,
+        away_team_id
+      ]
+    );
+    
+    res.status(201).json({
+      message: "Game added successfully",
+      game: result.rows[0]
+    });
+
+  } catch (err) {
+    console.error("Error adding game:", err);
+    res.status(500).json({ error: "Unable to add game." });
+  }
+});
+
+app.delete("/delete-game/:id", async (req, res) => {
+  const { id } = req.params;
+  const gameId = parseInt(id, 10);
+  if (isNaN(gameId) || gameId <= 0){
+    return res.status(400).json({
+      error: "Invalid game ID"
+    });
+  }
+
+  try {
+    const result = await pool.query(
+    `DELETE FROM games WHERE id = $1 RETURNING *`,
+      [gameId]
+    );
+    
+    if (result.rowCount === 0){
+      return res.status(404).json({ error: "Game not found" });
+    }
+
+    res.status(200).json({
+      message: "Game deleted successfully"
+    });
+
+
+  } catch (err){
+    console.log(err);
+    return res.status(500).json({
+      error: "Unable to delete game"
+    });
+  }
+})
+
+app.post("/add-statistic", async (req, res) => {
+  try {
+    const {
+      points,
+      assists,
+      rebounds,
+      steals,
+      blocks,
+      minutes,
+      fouls,
+      turnovers,
+      fg_pct,
+      three_p_pct,
+      ft_pct,
+      player_id,
+      game_id
+    } = req.body;
+
+    if (!player_id || !game_id) {
+      return res.status(400).json({
+        error: "player_id and game_id are required fields."
+      });
+    }
+
+    const result = await pool.query(`
+      INSERT INTO statistics (
+        points, assists, rebounds, steals, blocks, minutes, fouls, turnovers,
+        fg_pct, three_p_pct, ft_pct, player_id, game_id
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      RETURNING *`,
+      [
+        points !== undefined ? points : 0,
+        assists !== undefined ? assists : 0,
+        rebounds !== undefined ? rebounds : 0,
+        steals !== undefined ? steals : 0,
+        blocks !== undefined ? blocks : 0,
+        minutes !== undefined ? minutes : 0,
+        fouls !== undefined ? fouls : 0,
+        turnovers !== undefined ? turnovers : 0,
+        fg_pct !== undefined ? fg_pct : 0.0,
+        three_p_pct !== undefined ? three_p_pct : 0.0,
+        ft_pct !== undefined ? ft_pct : 0.0,
+        player_id,
+        game_id
+      ]
+    );
+
+    res.status(201).json({
+      message: "Statistic added successfully",
+      statistic: result.rows[0]
+    });
+  } catch (err) {
+    console.log("Error adding statistic:", err);
+    res.status(500).json({ error: "Unable to add statistic." });
+  }
+});
+
+app.delete("/delete-statistic/:id", async (req, res) => {
+  const { id } = req.params;
+
+  const statisticId = parseInt(id, 10);
+  if (isNaN(statisticId) || statisticId <= 0){
+    return res.status(400).json({ error: "Invalid statistic id" });
+  }
+
+  try {
+    const result = await pool.query(
+      "DELETE FROM statistics WHERE id = $1 RETURNING *",
+      [statisticId]
+    );
+
+    if (result.rowCount === 0){
+      return res.status(404).json({ error: "Statistic not found." });
+    }
+
+    res.status(200).json({
+      message: "Statistic deleted successfully.",
+    });
+  } catch (err){
+    res.status(500).json({ error: "Unable to delete statistic" });
   }
 });
 
@@ -128,27 +405,6 @@ app.post("/update-record/:id", async (req, res) => {
   // from a form. Make a form in the frontend
   const { id } = req.params;
 
-});
-
-// Endpoint to add a record
-app.post("/add-record", async (req, res) => {
-  try {
-    const { } = req.body;
-
-    //TODO: Add check to make sure all fields are found
-
-    //TODO: Update this once we know the schema.
-
-//    const result = await pool.query(
-//      "INSERT INTO table (field1, field2, field3....) VALUES ($1, $2, ....) RETURNING *",
-//      []
-//    )
-
-    res.status(201).json({ message: "Record added successfully" })
-  } catch (err){
-    console.log(err);
-    res.status(500).json({ error: "Unable to add record" })
-  }
 });
 
 
