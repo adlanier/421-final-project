@@ -25,8 +25,8 @@ pool
 // TODO: Uncomment this after we figure out and add schema.
 
 (async () => {
- try {
-   await pool.query(`
+  try {
+    await pool.query(`
     
    CREATE TABLE IF NOT EXISTS teams (
        id SERIAL PRIMARY KEY,
@@ -78,10 +78,10 @@ pool
     );
 
    `);
-   console.log("Tables created successfully");
- } catch(error){
-   console.error("Error creating tables:", error);
- }
+    console.log("Tables created successfully");
+  } catch (error) {
+    console.error("Error creating tables:", error);
+  }
 })();
 
 
@@ -115,12 +115,12 @@ app.delete("/delete-player/:id", async (req, res) => {
   try {
     const result = await pool.query("DELETE FROM players WHERE id = $1", [id]);
 
-    if (result.rowCount === 0){
+    if (result.rowCount === 0) {
       return res.status(404).json({ error: "Player not found" });
     }
     res.status(200).json({ message: "Player deleted successfully" })
 
-  } catch(err){
+  } catch (err) {
     console.log(err);
     res.status(500).json({ error: "Unable to delete player" })
   }
@@ -133,12 +133,12 @@ app.delete("/delete-team/:id", async (req, res) => {
   try {
     const result = await pool.query("DELETE FROM teams WHERE id = $1", [id]);
 
-    if (result.rowCount === 0){
+    if (result.rowCount === 0) {
       return res.status(404).json({ error: "Team not found" });
     }
     res.status(200).json({ message: "Team deleted successfully" })
 
-  } catch(err){
+  } catch (err) {
     console.log(err);
     res.status(500).json({ error: "Unable to delete team" })
   }
@@ -150,7 +150,7 @@ app.post("/add-team", async (req, res) => {
   try {
     const { name, division, wins, losses, top_25, rank } = req.body;
 
-    if (!name || !division){
+    if (!name || !division) {
       return res.status(400).json({ error: "Name and division are required" });
     }
 
@@ -161,11 +161,11 @@ app.post("/add-team", async (req, res) => {
       [name, division, wins || 0, losses || 0, top_25 || false, rank || null]
     );
 
-    res.status(201).json({ 
+    res.status(201).json({
       message: "Team added successfully",
       team: result.rows[0]
     });
-  } catch (err){
+  } catch (err) {
     console.log(err);
     res.status(500).json({ error: "Unable to add team" })
   }
@@ -174,17 +174,17 @@ app.post("/add-team", async (req, res) => {
 // Endpoint to add a player
 app.post("/add-player", async (req, res) => {
   try {
-    const { 
-      name, 
-      position, 
-      jersey_num, 
-      height_ft, 
-      weight_lbs, 
-      class: playerClass, 
-      injured, 
-      team_id 
+    const {
+      name,
+      position,
+      jersey_num,
+      height_ft,
+      weight_lbs,
+      class: playerClass,
+      injured,
+      team_id
     } = req.body;
-    
+
 
     if (!name) {
       return res.status(400).json({ error: "Name is required" });
@@ -213,20 +213,20 @@ app.post("/add-player", async (req, res) => {
         height_ft !== undefined ? height_ft : null,
         weight_lbs !== undefined ? weight_lbs : null,
         playerClass !== undefined ? playerClass : null,
-        injured !== undefined ? injured : false, 
+        injured !== undefined ? injured : false,
         team_id !== undefined ? team_id : null
       ]
     );
 
-    res.status(201).json({ 
+    res.status(201).json({
       message: "Player added successfully",
       player: result.rows[0]
     });
-  } catch (err){
+  } catch (err) {
     console.log(err);
 
     // SQL Error code: Foreign key violation
-    if (err.code === '23503') { 
+    if (err.code === '23503') {
       return res.status(400).json({ error: "Invalid team_id. The referenced team does not exist." });
     }
     res.status(500).json({ error: "Unable to add player" })
@@ -250,7 +250,7 @@ app.post("/add-game", async (req, res) => {
       home_score === undefined ||
       away_score === undefined ||
       !home_team_id || !away_team_id
-    ){
+    ) {
       return res.status(400).json({
         error: "Scheduled date, home_score, away_score, home_team_id, and away_team_id are required fields."
       });
@@ -271,13 +271,16 @@ app.post("/add-game", async (req, res) => {
         away_team_id
       ]
     );
-    
+
     res.status(201).json({
       message: "Game added successfully",
       game: result.rows[0]
     });
 
   } catch (err) {
+    if (err.code === '23503') {
+      return res.status(400).json({ error: "Invalid team_id. The referenced team does not exist." });
+    }
     console.error("Error adding game:", err);
     res.status(500).json({ error: "Unable to add game." });
   }
@@ -286,7 +289,7 @@ app.post("/add-game", async (req, res) => {
 app.delete("/delete-game/:id", async (req, res) => {
   const { id } = req.params;
   const gameId = parseInt(id, 10);
-  if (isNaN(gameId) || gameId <= 0){
+  if (isNaN(gameId) || gameId <= 0) {
     return res.status(400).json({
       error: "Invalid game ID"
     });
@@ -294,11 +297,11 @@ app.delete("/delete-game/:id", async (req, res) => {
 
   try {
     const result = await pool.query(
-    `DELETE FROM games WHERE id = $1 RETURNING *`,
+      `DELETE FROM games WHERE id = $1 RETURNING *`,
       [gameId]
     );
-    
-    if (result.rowCount === 0){
+
+    if (result.rowCount === 0) {
       return res.status(404).json({ error: "Game not found" });
     }
 
@@ -307,7 +310,7 @@ app.delete("/delete-game/:id", async (req, res) => {
     });
 
 
-  } catch (err){
+  } catch (err) {
     console.log(err);
     return res.status(500).json({
       error: "Unable to delete game"
@@ -368,6 +371,9 @@ app.post("/add-statistic", async (req, res) => {
       statistic: result.rows[0]
     });
   } catch (err) {
+    if (err.code === '23503') {
+      return res.status(400).json({ error: "Invalid team_id or player_id. The referenced team or player does not exist." });
+    }
     console.log("Error adding statistic:", err);
     res.status(500).json({ error: "Unable to add statistic." });
   }
@@ -377,7 +383,7 @@ app.delete("/delete-statistic/:id", async (req, res) => {
   const { id } = req.params;
 
   const statisticId = parseInt(id, 10);
-  if (isNaN(statisticId) || statisticId <= 0){
+  if (isNaN(statisticId) || statisticId <= 0) {
     return res.status(400).json({ error: "Invalid statistic id" });
   }
 
@@ -387,29 +393,286 @@ app.delete("/delete-statistic/:id", async (req, res) => {
       [statisticId]
     );
 
-    if (result.rowCount === 0){
+    if (result.rowCount === 0) {
       return res.status(404).json({ error: "Statistic not found." });
     }
 
     res.status(200).json({
       message: "Statistic deleted successfully.",
     });
-  } catch (err){
+  } catch (err) {
     res.status(500).json({ error: "Unable to delete statistic" });
   }
 });
 
-// Endpoint to update a record
-app.post("/update-record/:id", async (req, res) => {
+// Endpoint to update a team
+app.put("/update-team/:id", async (req, res) => {
   //TODO: The values used to update this record should be sent in the request body
   // from a form. Make a form in the frontend
   const { id } = req.params;
+  try {
+    const { name, division, wins, losses, top_25, rank } = req.body;
+
+    if (!name || !division) {
+      return res.status(400).json({ error: "Name and division are required" });
+    }
+    const existingRecord = await pool.query(`
+      SELECT * FROM teams WHERE id = $1
+      `, [id]);
+
+    if (existingRecord.rows.length === 0) {
+      return res.status(404).json({ error: "Team not found" })
+    }
+
+    const result = await pool.query(`
+      UPDATE teams SET 
+        name = $1,
+        division = $2,
+        wins = $3,
+        losses = $4,
+        top_25 = $5,
+        rank = $6
+      WHERE id = $7
+      RETURNING *`, [name, division, wins, losses, top_25, rank, id])
+
+    res.status(200).json({
+      message: "Team updated successfully",
+      team: result.rows[0]
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ error: "Unable to update team" })
+  }
 
 });
 
+app.put("/update-player/:id", async (req, res) => {
+  //TODO: The values used to update this record should be sent in the request body
+  // from a form. Make a form in the frontend
+  const { id } = req.params;
+  try {
+    const {
+      name,
+      position,
+      jersey_num,
+      height_ft,
+      weight_lbs,
+      class: playerClass,
+      injured,
+      team_id
+    } = req.body;
+
+
+    if (!name) {
+      return res.status(400).json({ error: "Name is required" });
+    }
+
+    if (jersey_num !== undefined && (typeof jersey_num !== 'number' || jersey_num < 0 || jersey_num > 99)) {
+      return res.status(400).json({ error: "Jersey number must be an integer between 0 and 99." });
+    }
+
+    if (playerClass !== undefined && (typeof playerClass !== 'number' || playerClass < 2016)) {
+      return res.status(400).json({ error: "Class must be an integer of 2016 or later." });
+    }
+
+    if (team_id !== undefined && (typeof team_id !== 'number' || team_id <= 0)) {
+      return res.status(400).json({ error: "team_id must be a positive integer." });
+    }
+
+    const existingRecord = await pool.query(`
+      SELECT * FROM players WHERE id = $1
+      `, [id]);
+
+    if (existingRecord.rows.length === 0) {
+      return res.status(404).json({ error: "player not found" })
+    }
+
+    const result = await pool.query(`
+      UPDATE players
+      SET 
+        name = $1,
+        position = $2,
+        jersey_num = $3,
+        height_ft = $4,
+        weight_lbs = $5,
+        class = $6,
+        injured = $7,
+        team_id = $8
+      WHERE id = $9
+      RETURNING *`, [name, position, jersey_num, height_ft, weight_lbs, playerClass, injured, team_id, id]);
+   
+
+    res.status(200).json({
+      message: "Player updated successfully",
+      team: result.rows[0]
+    });
+  } catch (err) {
+    console.log(err);
+
+    // SQL Error code: Foreign key violation
+    if (err.code === '23503') {
+      return res.status(400).json({ error: "Invalid team_id. The referenced team does not exist." });
+    }
+    res.status(500).json({ error: "Unable to update player" })
+  }
+
+});
+
+app.put("/update-game/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const {
+      scheduled_date,
+      location,
+      home_score,
+      away_score,
+      home_team_id,
+      away_team_id
+    } = req.body;
+
+    if (
+      !scheduled_date ||
+      home_score === undefined ||
+      away_score === undefined ||
+      !home_team_id || !away_team_id
+    ) {
+      return res.status(400).json({
+        error: "Scheduled date, home_score, away_score, home_team_id, and away_team_id are required fields."
+      })
+    }
+
+    const existingRecord = await pool.query(`
+      SELECT * FROM games WHERE id = $1
+      `, [id]);
+
+    if (existingRecord.rows.length === 0) {
+      return res.status(404).json({ error: "game not found" })
+    }
+
+    const result = await pool.query(
+      `
+      UPDATE games
+      SET
+        scheduled_date = $1,
+        location = $2,
+        home_score = $3,
+        away_score = $4,
+        home_team_id = $5,
+        away_team_id = $6
+      WHERE id = $7
+      RETURNING *;
+      `,
+      [
+        scheduled_date,
+        location,
+        home_score,
+        away_score,
+        home_team_id,
+        away_team_id,
+        id
+      ]
+    );
+    
+
+    res.status(200).json({
+      message: "Game updated successfully",
+      game: result.rows[0]
+    });
+
+  } catch (err) {
+    if (err.code === '23503') {
+      return res.status(400).json({ error: "Invalid team_id. The referenced team does not exist." });
+    }
+    console.error("Error updating game:", err);
+    res.status(500).json({ error: "Unable to update game." });
+  }
+});
+
+app.post("/update-statistic/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const {
+      points,
+      assists,
+      rebounds,
+      steals,
+      blocks,
+      minutes,
+      fouls,
+      turnovers,
+      fg_pct,
+      three_p_pct,
+      ft_pct,
+      player_id,
+      game_id
+    } = req.body;
+
+    if (!player_id || !game_id) {
+      return res.status(400).json({
+        error: "player_id and game_id are required fields."
+      });
+    }
+
+    const existingRecord = await pool.query(`
+      SELECT * FROM statistics WHERE id = $1
+      `, [id]);
+
+    if (existingRecord.rows.length === 0) {
+      return res.status(404).json({ error: "statistic not found" })
+    }
+
+    const result = await pool.query(`
+      UPDATE statistics
+      SET
+        points = $1,
+        assists = $2,
+        rebounds = $3,
+        steals = $4,
+        blocks = $5,
+        minutes = $6,
+        fouls = $7,
+        turnovers = $8,
+        fg_pct = $9,
+        three_p_pct = $10,
+        ft_pct = $11,
+        player_id = $12,
+        game_id = $13
+      WHERE id = $14
+      RETURNING *;
+    `, [
+      points !== undefined ? points : 0,
+      assists !== undefined ? assists : 0,
+      rebounds !== undefined ? rebounds : 0,
+      steals !== undefined ? steals : 0,
+      blocks !== undefined ? blocks : 0,
+      minutes !== undefined ? minutes : 0,
+      fouls !== undefined ? fouls : 0,
+      turnovers !== undefined ? turnovers : 0,
+      fg_pct !== undefined ? fg_pct : 0.0,
+      three_p_pct !== undefined ? three_p_pct : 0.0,
+      ft_pct !== undefined ? ft_pct : 0.0,
+      player_id,
+      game_id,
+      id
+    ]);
+    
+
+    res.status(200).json({
+      message: "Statistic updated successfully",
+      statistic: result.rows[0]
+    });
+  } catch (err) {
+    if (err.code === '23503') {
+      return res.status(400).json({ error: "Invalid team_id or player_id. The referenced team or player does not exist." });
+    }
+    console.log("Error updating statistic:", err);
+    res.status(500).json({ error: "Unable to update statistic." });
+  }
+});
 
 
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`)
+  console.log(`http://localhost:${PORT}/`)
 })
