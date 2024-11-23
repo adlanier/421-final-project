@@ -1,6 +1,8 @@
 import dotenv from "dotenv";
 import express from "express";
 import pkg from "pg";
+import cors from "cors";
+
 dotenv.config();
 
 const { Pool } = pkg;
@@ -27,6 +29,20 @@ pool
 (async () => {
   try {
     await pool.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 
+          FROM information_schema.columns 
+          WHERE table_name='players' AND column_name='height_ft'
+        ) THEN
+          ALTER TABLE players RENAME COLUMN height_ft TO height_inches;
+        END IF;
+      END $$;
+    `);
+    console.log("Column renamed (height_ft to height_inches).");
+
+    await pool.query(`
     
    CREATE TABLE IF NOT EXISTS teams (
        id SERIAL PRIMARY KEY,
@@ -43,7 +59,7 @@ pool
        name VARCHAR(255) NOT NULL,
        position VARCHAR(255),
        jersey_num INT CHECK (jersey_num BETWEEN 0 AND 99),
-       height_ft REAL,
+       height_inches REAL,
        weight_lbs REAL,
        class INT CHECK (class >= 2016),
        injured BOOLEAN DEFAULT FALSE,
@@ -98,13 +114,13 @@ app.use(express.json());
 
 //TODO: Uncomment once we have frontend, and add frontend URL to .env
 
-//app.use(
-//  cors({
-//    origin: process.env.FRONTEND_URL,
-//    methods: ["GET", "POST", "DELETE"],
-//    allowedHeaders: ["Content-Type", "Authorization"],
-//  })
-//);
+app.use(
+ cors({
+   origin: process.env.FRONTEND_URL,
+   methods: ["GET", "POST", "PUT", "DELETE"],
+   allowedHeaders: ["Content-Type", "Authorization"],
+ })
+);
 
 
 // Endpoint to delete a player
@@ -178,7 +194,7 @@ app.post("/add-player", async (req, res) => {
       name,
       position,
       jersey_num,
-      height_ft,
+      height_inches,
       weight_lbs,
       class: playerClass,
       injured,
@@ -203,14 +219,14 @@ app.post("/add-player", async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO players (name, position, jersey_num, height_ft, weight_lbs, class, injured, team_id)
+      `INSERT INTO players (name, position, jersey_num, height_inches, weight_lbs, class, injured, team_id)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *`,
       [
         name,
         position || null,
         jersey_num !== undefined ? jersey_num : null,
-        height_ft !== undefined ? height_ft : null,
+        height_inches !== undefined ? height_inches : null,
         weight_lbs !== undefined ? weight_lbs : null,
         playerClass !== undefined ? playerClass : null,
         injured !== undefined ? injured : false,
@@ -455,7 +471,7 @@ app.put("/update-player/:id", async (req, res) => {
       name,
       position,
       jersey_num,
-      height_ft,
+      height_inches,
       weight_lbs,
       class: playerClass,
       injured,
@@ -493,13 +509,13 @@ app.put("/update-player/:id", async (req, res) => {
         name = $1,
         position = $2,
         jersey_num = $3,
-        height_ft = $4,
+        height_inches = $4,
         weight_lbs = $5,
         class = $6,
         injured = $7,
         team_id = $8
       WHERE id = $9
-      RETURNING *`, [name, position, jersey_num, height_ft, weight_lbs, playerClass, injured, team_id, id]);
+      RETURNING *`, [name, position, jersey_num, height_inches, weight_lbs, playerClass, injured, team_id, id]);
    
 
     res.status(200).json({
@@ -588,7 +604,7 @@ app.put("/update-game/:id", async (req, res) => {
   }
 });
 
-app.post("/update-statistic/:id", async (req, res) => {
+app.put("/update-statistic/:id", async (req, res) => {
   const { id } = req.params;
   try {
     const {
