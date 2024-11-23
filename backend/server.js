@@ -139,7 +139,7 @@ app.delete("/delete-team/:id", async (req, res) => {
     res.status(200).json({ message: "Team deleted successfully" })
 
   } catch (err) {
-    console.log(err);
+    console.log(err)
     res.status(500).json({ error: "Unable to delete team" })
   }
 });
@@ -670,6 +670,49 @@ app.post("/update-statistic/:id", async (req, res) => {
   }
 });
 
+app.get("/get-games", async (req, res) => {
+  try {
+    const result = await pool.query(`SELECT * FROM games`)
+    res.status(200).json({ games: result.rows })
+
+  } catch (err) {
+    console.log("Error get games:", err);
+    res.status(500).json({ error: "Unable to get games." });
+  }
+})
+
+app.get("/get-players", async (req, res) => {
+  try {
+    const result = await pool.query(`SELECT * FROM players`)
+    res.status(200).json({ players: result.rows })
+
+  } catch (err) {
+    console.log("Error get players:", err);
+    res.status(500).json({ error: "Unable to get players." });
+  }
+})
+
+app.get("/get-teams", async (req, res) => {
+  try {
+    const result = await pool.query(`SELECT * FROM teams`)
+    res.status(200).json({ teams: result.rows })
+
+  } catch (err) {
+    console.log("Error get teams:", err);
+    res.status(500).json({ error: "Unable to get teams." });
+  }
+})
+
+app.get("/get-statistics", async (req, res) => {
+  try {
+    const result = await pool.query(`SELECT * FROM statistics`)
+    res.status(200).json({ statistics: result.rows })
+
+  } catch (err) {
+    console.log("Error get statistics:", err);
+    res.status(500).json({ error: "Unable to get statistics." });
+  }
+})
 
 
 app.listen(PORT, () => {
