@@ -12,11 +12,10 @@ const Games = () => {
     home_team_id: null,
     away_team_id: null,
   });
-  const [editMode, setEditMode] = useState(null); // Tracks the game being edited
+  const [editMode, setEditMode] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    // Fetch games and teams
     fetchGames()
       .then((res) => setGames(res.data.games))
       .catch((err) => console.error(err));

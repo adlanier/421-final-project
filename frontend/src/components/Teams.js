@@ -11,7 +11,7 @@ const Teams = () => {
     top_25: false,
     rank: null,
   });
-  const [editMode, setEditMode] = useState(null); // Track the team being edited
+  const [editMode, setEditMode] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {

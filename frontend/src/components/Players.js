@@ -14,7 +14,7 @@ const Players = () => {
     injured: false,
     team_id: null,
   });
-  const [editMode, setEditMode] = useState(null); // Stores the ID of the player being edited
+  const [editMode, setEditMode] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {

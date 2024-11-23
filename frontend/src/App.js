@@ -9,7 +9,7 @@ const App = () => {
   return (
     <Router>
       <div>
-        {/* Navigation Bar */}
+        {/* Nav Bar */}
         <nav style={{ margin: "10px" }}>
           <Link to="/teams" style={{ marginRight: "10px" }}>Teams</Link>
           <Link to="/players" style={{ marginRight: "10px" }}>Players</Link>
