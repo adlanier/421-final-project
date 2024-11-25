@@ -2,7 +2,18 @@ import React, { useEffect, useState } from "react";
 import { fetchTeams, addTeam, deleteTeam, updateTeam } from "../api/api";
 
 const Teams = () => {
-  const [teams, setTeams] = useState([]);
+  const [teams, setTeams] = useState([
+    { id: 1, name: "Wildcats", division: 1, wins: 15, losses: 5, top_25: true, rank: 10 },
+    { id: 2, name: "Hawks", division: 2, wins: 12, losses: 8, top_25: false, rank: null },
+    { id: 3, name: "Tigers", division: 1, wins: 20, losses: 0, top_25: true, rank: 1 },
+    { id: 4, name: "Panthers", division: 3, wins: 8, losses: 12, top_25: false, rank: null },
+    { id: 5, name: "Bears", division: 2, wins: 14, losses: 6, top_25: true, rank: 15 },
+    { id: 6, name: "Lions", division: 1, wins: 10, losses: 10, top_25: false, rank: null },
+    { id: 7, name: "Eagles", division: 2, wins: 18, losses: 2, top_25: true, rank: 5 },
+    { id: 8, name: "Sharks", division: 3, wins: 5, losses: 15, top_25: false, rank: null },
+    { id: 9, name: "Wolves", division: 1, wins: 19, losses: 1, top_25: true, rank: 3 },
+    { id: 10, name: "Cubs", division: 2, wins: 11, losses: 9, top_25: false, rank: null },
+  ]);
   const [newTeam, setNewTeam] = useState({
     name: "",
     division: 1,
@@ -15,94 +26,46 @@ const Teams = () => {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    fetchTeams()
-      .then((res) => setTeams(res.data.teams))
-      .catch((err) => console.error(err));
+    // Uncomment to replace dummy data with real API data
+    // fetchTeams()
+    //   .then((res) => setTeams(res.data.teams))
+    //   .catch((err) => console.error(err));
   }, []);
 
   const handleAddTeam = () => {
     const { name, division, wins, losses, rank, top_25 } = newTeam;
-  
+
     if (!name || !division) {
       setError("Name and Division are required fields.");
       return;
     }
-  
+
     if (wins < 0 || losses < 0) {
       setError("Wins and Losses cannot be negative.");
       return;
     }
 
-    if (wins > 0 || losses > 0 || (wins + losses) > 40) {
-      setError("A college basketball teams play no more than 40 games in a season.");
+    if (wins + losses > 40) {
+      setError("A college basketball team cannot play more than 40 games in a season.");
       return;
     }
-  
-    if (top_25 && (rank === null || rank < 1)) {
+
+    if (top_25 && (rank === null || rank < 1 || rank > 25)) {
       setError("Rank must be between 1 and 25 if the team is in the Top 25.");
       return;
     }
 
-    if (top_25 && ( rank > 25)) {
-      setError("Rank must between 1 and 25 if the team is in the Top 25.");
-      return;
-    }
-  
     setError("");
     addTeam(newTeam)
       .then(() => fetchTeams().then((res) => setTeams(res.data.teams)))
       .catch((err) => console.error(err));
   };
-  
 
   const handleDeleteTeam = (id) => {
     deleteTeam(id)
-      .then(() => fetchTeams().then((res) => setTeams(res.data.teams)))
+      .then(() => setTeams((prevTeams) => prevTeams.filter((team) => team.id !== id)))
       .catch((err) => console.error(err));
   };
-
-  const handleUpdateTeam = (id, updatedTeam) => {
-    const { name, division, wins, losses, rank, top_25 } = updatedTeam;
-  
-    if (!name || !division) {
-      setError("Name and Division are required fields.");
-      return;
-    }
-  
-    if (wins < 0 || losses < 0) {
-      setError("Wins and Losses cannot be negative.");
-      return;
-    }
-
-    if (wins > 0 || losses > 0 || (wins + losses) > 40) {
-      setError("A college basketball teams play no more than 40 games in a season.");
-      return;
-    }
-  
-    if (top_25 && (rank === null || rank < 1)) {
-      setError("Rank must be between 1 and 25 if the team is in the Top 25.");
-      return;
-    }
-
-    if (top_25 && ( rank > 25)) {
-      setError("Rank must between 1 and 25 if the team is in the Top 25.");
-      return;
-    }
-  
-  
-    setError(""); 
-    updateTeam(id, updatedTeam)
-      .then(() => {
-        setTeams((prevTeams) =>
-          prevTeams.map((team) =>
-            team.id === id ? { ...team, ...updatedTeam } : team
-          )
-        );
-        setEditMode(null);
-      })
-      .catch((err) => console.error(err));
-  };
-  
 
   return (
     <div className="p-6 bg-base-200 min-h-screen">
@@ -116,191 +79,78 @@ const Teams = () => {
           </div>
         )}
 
-        <ul className="space-y-4">
-          {teams.map((team) =>
-            editMode === team.id ? (
-              <li key={team.id} className="card bg-base-100 shadow-md p-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="label">
-                      <span className="label-text">Name</span>
-                    </label>
-                    <input
-                      className="input input-bordered"
-                      type="text"
-                      value={team.name || ""}
-                      onChange={(e) =>
-                        setTeams((prev) =>
-                          prev.map((t) =>
-                            t.id === team.id
-                              ? { ...t, name: e.target.value }
-                              : t
-                          )
-                        )
-                      }
-                    />
-                  </div>
-                  <div>
-                    <label className="label">
-                      <span className="label-text">Division</span>
-                    </label>
-                    <input
-                      className="input input-bordered"
-                      type="number"
-                      value={team.division || ""}
-                      onChange={(e) =>
-                        setTeams((prev) =>
-                          prev.map((t) =>
-                            t.id === team.id
-                              ? { ...t, division: parseInt(e.target.value, 10) }
-                              : t
-                          )
-                        )
-                      }
-                    />
-                  </div>
-                  <div>
-                    <label className="label">
-                      <span className="label-text">Wins</span>
-                    </label>
-                    <input
-                      className="input input-bordered"
-                      type="number"
-                      value={team.wins || ""}
-                      onChange={(e) =>
-                        setTeams((prev) =>
-                          prev.map((t) =>
-                            t.id === team.id
-                              ? { ...t, wins: parseInt(e.target.value, 10) }
-                              : t
-                          )
-                        )
-                      }
-                    />
-                  </div>
-                  <div>
-                    <label className="label">
-                      <span className="label-text">Losses</span>
-                    </label>
-                    <input
-                      className="input input-bordered"
-                      type="number"
-                      value={team.losses || ""}
-                      onChange={(e) =>
-                        setTeams((prev) =>
-                          prev.map((t) =>
-                            t.id === team.id
-                              ? { ...t, losses: parseInt(e.target.value, 10) }
-                              : t
-                          )
-                        )
-                      }
-                    />
-                  </div>
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      className="checkbox"
-                      checked={team.top_25 || false}
-                      onChange={(e) =>
-                        setTeams((prev) =>
-                          prev.map((t) =>
-                            t.id === team.id
-                              ? { ...t, top_25: e.target.checked }
-                              : t
-                          )
-                        )
-                      }
-                    />
-                    <span>Top 25</span>
-                  </label>
-                  {team.top_25 && (
-                    <div>
-                      <label className="label">
-                        <span className="label-text">Rank</span>
-                      </label>
-                      <input
-                        className="input input-bordered"
-                        type="number"
-                        value={team.rank || ""}
-                        onChange={(e) =>
-                          setTeams((prev) =>
-                            prev.map((t) =>
-                              t.id === team.id
-                                ? {
-                                    ...t,
-                                    rank: e.target.value
-                                      ? parseInt(e.target.value, 10)
-                                      : null,
-                                  }
-                                : t
-                            )
-                          )
-                        }
-                      />
-                    </div>
-                  )}
-                </div>
-                <div className="flex justify-end space-x-2 mt-4">
-                  <button
-                    className="btn btn-success"
-                    onClick={() =>
-                      handleUpdateTeam(team.id, {
-                        name: team.name,
-                        division: team.division,
-                        wins: team.wins,
-                        losses: team.losses,
-                        top_25: team.top_25,
-                        rank: team.rank,
-                      })
-                    }
-                  >
-                    Save
-                  </button>
-                  <button
-                    className="btn btn-outline"
-                    onClick={() => setEditMode(null)}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </li>
-            ) : (
-              <li key={team.id} className="card bg-base-100 shadow-md p-4">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h3 className="font-bold">{team.name}</h3>
-                    <p>
-                      Division {team.division} - Wins: {team.wins}, Losses:{" "}
-                      {team.losses}{" "}
-                      {team.top_25 && (
-                        <span className="badge badge-secondary">
-                          Rank: {team.rank}
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex space-x-2">
+        <div className="overflow-x-auto mb-6">
+          <table className="table w-full bg-white shadow-md rounded-lg">
+            <thead className="bg-gray-100 text-gray-600 uppercase text-sm">
+              <tr>
+                <th className="py-2 px-4 text-left">Name</th>
+                <th className="py-2 px-4 text-left">Division</th>
+                <th className="py-2 px-4 text-left">Wins</th>
+                <th className="py-2 px-4 text-left">Losses</th>
+                <th className="py-2 px-4 text-left">Top 25</th>
+                <th className="py-2 px-4 text-left">Rank</th>
+                <th className="py-2 px-4"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {teams.map((team, index) => (
+                <tr
+                  key={team.id}
+                  className={index % 2 === 0 ? "bg-gray-50" : "bg-gray-100"}
+                >
+                  <td className="py-2 px-4">{team.name}</td>
+                  <td className="py-2 px-4">{team.division}</td>
+                  <td className="py-2 px-4">{team.wins}</td>
+                  <td className="py-2 px-4">{team.losses}</td>
+                  <td className="py-2 px-4">{team.top_25 ? "Yes" : "No"}</td>
+                  <td className="py-2 px-4">{team.rank || "N/A"}</td>
+                  <td className="py-2 px-4 flex space-x-2">
                     <button
-                      className="btn btn-info btn-sm"
+                      className="btn btn-ghost btn-xs"
                       onClick={() => setEditMode(team.id)}
                     >
-                      Edit
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5M16.5 3.5a2.121 2.121 0 113 3L10 16l-4 1 1-4 9.5-9.5z"
+                        />
+                      </svg>
                     </button>
                     <button
-                      className="btn btn-error btn-sm"
+                      className="btn btn-ghost btn-xs text-red-500"
                       onClick={() => handleDeleteTeam(team.id)}
                     >
-                      Delete
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M19 7l-.867 12.142A2 2 0 0116.136 21H7.864a2 2 0 01-1.997-1.858L5 7m5 4v6m4-6v6M6 7h12M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"
+                        />
+                      </svg>
                     </button>
-                  </div>
-                </div>
-              </li>
-            )
-          )}
-        </ul>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-        <div className="card bg-base-100 shadow-md p-6 mt-6">
+        <div className="card bg-base-100 shadow-md p-6">
           <h3 className="text-xl font-bold mb-4">Add a New Team</h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
