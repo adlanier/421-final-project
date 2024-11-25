@@ -26,10 +26,32 @@ const Games = () => {
   }, []);
 
   const handleAddGame = () => {
-    addGame(newGame)
-      .then(() => fetchGames().then((res) => setGames(res.data.games)))
-      .catch((err) => console.error(err));
-  };
+    const { scheduled_date,  home_score, away_score, home_team_id, away_team_id } = newGame;
+  
+    if (!scheduled_date || !home_team_id || !away_team_id) {
+      setError("Scheduled date, Home Team, and Away Team are required fields.");
+      return;
+    }
+
+    if (home_team_id === away_team_id) {
+      setError("Home and Away teams cannot be the same.");
+      return;
+    }
+  
+    if (home_score < 0 || away_score < 0) {
+      setError("Scores cannot be negative.");
+      return;
+    }
+
+    setError("");
+  addGame(newGame)
+    .then(() => fetchGames().then((res) => setGames(res.data.games)))
+    .catch((err) => {
+      console.error(err);
+      setError(err.response?.data?.error || "An error occurred while adding the game.");
+    });
+};
+  
 
   const handleDeleteGame = (id) => {
     deleteGame(id)
@@ -38,19 +60,36 @@ const Games = () => {
   };
 
   const handleUpdateGame = (id, updatedGame) => {
-    if (!updatedGame.home_team_id || !updatedGame.away_team_id) {
-      setError("Home and Away Teams are required fields.");
+    const { scheduled_date, home_score, away_score, home_team_id, away_team_id } = updatedGame;
+  
+    if (!scheduled_date || !home_team_id || !away_team_id) {
+      setError("Scheduled date, Home Team, and Away Team are required fields.");
       return;
     }
-    setError("");
+  
+    if (home_score < 0 || away_score < 0) {
+      setError("Scores cannot be negative.");
+      return;
+    }
+    
 
+    if (home_team_id === away_team_id) {
+      setError("Home and Away teams cannot be the same.");
+      return;
+    }
+  
+    setError("");
     updateGame(id, updatedGame)
       .then(() => {
         fetchGames().then((res) => setGames(res.data.games));
         setEditMode(null);
       })
-      .catch((err) => console.error(err));
+      .catch((err) => {
+        console.error(err);
+        setError(err.response?.data?.error || "An error occurred while updating the game.");
+      });
   };
+  
 
   const getTeamName = (teamId) => {
     const team = teams.find((team) => team.id === teamId);
@@ -60,13 +99,10 @@ const Games = () => {
   const formatDate = (dateString) => {
     if (!dateString) return "Invalid Date";
     const date = new Date(dateString);
-    return date.toLocaleString("en-US", {
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
       month: "2-digit",
       day: "2-digit",
-      year: "numeric",
-      hour: "numeric",
-      minute: "numeric",
-      hour12: true,
     });
   };
 
@@ -79,7 +115,7 @@ const Games = () => {
           editMode === game.id ? (
             <li key={game.id}>
               <input
-                type="datetime-local"
+                type="date"
                 value={game.scheduled_date || ""}
                 onChange={(e) =>
                   setGames((prev) =>
@@ -190,7 +226,7 @@ const Games = () => {
         <label>
           Scheduled Date:
           <input
-            type="datetime-local"
+            type="date"
             value={newGame.scheduled_date}
             onChange={(e) => setNewGame({ ...newGame, scheduled_date: e.target.value })}
           />
