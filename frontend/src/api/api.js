@@ -37,3 +37,16 @@ export const deleteStatistic = (statId) =>
   axios.delete(`${API_BASE_URL}/delete-statistic/${statId}`);
 export const updateStatistic = (statId, statData) =>
   axios.put(`${API_BASE_URL}/update-statistic/${statId}`, statData);
+
+export const transferPlayer = async (playerId, newTeamId) => {
+  try {
+    const response = await axios.post(`${API_BASE_URL}/transfer-player`, {
+      player_id: playerId,
+      new_team_id: newTeamId,
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error transferring player:", error.response?.data || error.message);
+    throw error;
+  }
+};

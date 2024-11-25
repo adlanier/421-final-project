@@ -1048,6 +1048,60 @@ app.delete("/delete-roster/:id", async (req, res) => {
   }
 })
 
+app.post("/transfer-player", async (req, res) => {
+  const { player_id, new_team_id } = req.body;
+
+  if (!player_id || !new_team_id) {
+    return res.status(400).json({
+      error: "player_id and new_team_id are required.",
+    });
+  }
+
+  try {
+    await pool.query("BEGIN");
+
+    // Check if the player exists
+    const playerResult = await pool.query(
+      "SELECT * FROM players WHERE id = $1",
+      [player_id]
+    );
+    if (playerResult.rows.length === 0) {
+      throw new Error("Player not found.");
+    }
+
+    const player = playerResult.rows[0];
+
+    // Check if the new team has a player with the same jersey number
+    const jerseyConflict = await pool.query(
+      "SELECT * FROM players WHERE team_id = $1 AND jersey_num = $2",
+      [new_team_id, player.jersey_num]
+    );
+    if (jerseyConflict.rows.length > 0) {
+      throw new Error(
+        `Jersey number ${player.jersey_num} already exists on the new team.`
+      );
+    }
+
+    // Update the player's team_id
+    await pool.query(
+      "UPDATE players SET team_id = $1 WHERE id = $2",
+      [new_team_id, player_id]
+    );
+
+    await pool.query("COMMIT");
+    res.status(200).json({
+      message: "Player transferred successfully.",
+    });
+  } catch (error) {
+    await pool.query("ROLLBACK");
+    console.error("Transaction failed:", error);
+    res.status(400).json({
+      error: error.message || "An error occurred while transferring the player.",
+    });
+  }
+});
+
+
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`)

@@ -3,16 +3,16 @@ import { fetchTeams, addTeam, deleteTeam} from "../api/api";
 
 const Teams = () => {
   const [teams, setTeams] = useState([
-    { id: 1, name: "Wildcats", division: 1, wins: 15, losses: 5, top_25: true, rank: 10 },
-    { id: 2, name: "Hawks", division: 2, wins: 12, losses: 8, top_25: false, rank: null },
-    { id: 3, name: "Tigers", division: 1, wins: 20, losses: 0, top_25: true, rank: 1 },
-    { id: 4, name: "Panthers", division: 3, wins: 8, losses: 12, top_25: false, rank: null },
-    { id: 5, name: "Bears", division: 2, wins: 14, losses: 6, top_25: true, rank: 15 },
-    { id: 6, name: "Lions", division: 1, wins: 10, losses: 10, top_25: false, rank: null },
-    { id: 7, name: "Eagles", division: 2, wins: 18, losses: 2, top_25: true, rank: 5 },
-    { id: 8, name: "Sharks", division: 3, wins: 5, losses: 15, top_25: false, rank: null },
-    { id: 9, name: "Wolves", division: 1, wins: 19, losses: 1, top_25: true, rank: 3 },
-    { id: 10, name: "Cubs", division: 2, wins: 11, losses: 9, top_25: false, rank: null },
+    // { id: 1, name: "Wildcats", division: 1, wins: 15, losses: 5, top_25: true, rank: 10 },
+    // { id: 2, name: "Hawks", division: 2, wins: 12, losses: 8, top_25: false, rank: null },
+    // { id: 3, name: "Tigers", division: 1, wins: 20, losses: 0, top_25: true, rank: 1 },
+    // { id: 4, name: "Panthers", division: 3, wins: 8, losses: 12, top_25: false, rank: null },
+    // { id: 5, name: "Bears", division: 2, wins: 14, losses: 6, top_25: true, rank: 15 },
+    // { id: 6, name: "Lions", division: 1, wins: 10, losses: 10, top_25: false, rank: null },
+    // { id: 7, name: "Eagles", division: 2, wins: 18, losses: 2, top_25: true, rank: 5 },
+    // { id: 8, name: "Sharks", division: 3, wins: 5, losses: 15, top_25: false, rank: null },
+    // { id: 9, name: "Wolves", division: 1, wins: 19, losses: 1, top_25: true, rank: 3 },
+    // { id: 10, name: "Cubs", division: 2, wins: 11, losses: 9, top_25: false, rank: null },
   ]);
   const [newTeam, setNewTeam] = useState({
     name: "",

@@ -4,6 +4,7 @@ import Teams from "./components/Teams";
 import Players from "./components/Players";
 import Games from "./components/Games";
 import Statistics from "./components/Statistics";
+import TransferPlayer from "./components/TransferPlayer";
 
 const App = () => {
   return (
@@ -54,6 +55,14 @@ const App = () => {
                     Statistics
                   </Link>
                 </li>
+                <li>
+                  <Link
+                    to="/transfer"
+                    className="hover:text-gray-700 transition-colors duration-200"
+                  >
+                    Transfer
+                  </Link>
+                </li>
               </ul>
             </nav>
           </div>
@@ -67,6 +76,7 @@ const App = () => {
             <Route path="/players" element={<Players />} />
             <Route path="/games" element={<Games />} />
             <Route path="/statistics" element={<Statistics />} />
+            <Route path="/transfer" element={<TransferPlayer />} />
             <Route
               path="*"
               element={<h1 className="text-center text-2xl">404 - Page Not Found</h1>}
