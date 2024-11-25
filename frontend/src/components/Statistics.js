@@ -51,27 +51,89 @@ const Statistics = () => {
   }, []);
 
   const handleAddStatistic = () => {
-    if (!newStat.player_id || !newStat.game_id) {
+    const {
+      points,
+      assists,
+      rebounds,
+      steals,
+      blocks,
+      minutes,
+      fouls,
+      turnovers,
+      fg_pct,
+      three_p_pct,
+      ft_pct,
+      player_id,
+      game_id,
+    } = newStat;
+  
+    if (!player_id || !game_id) {
       setError("Player and Game are required fields.");
       return;
     }
 
-    const invalidFields = Object.entries(newStat).filter(
-      ([key, value]) =>
-        key !== "player_id" && key !== "game_id" && value < 0
+    const existingStat = statistics.find(
+      (stat) => stat.player_id === player_id && stat.game_id === game_id
     );
-
-    if (invalidFields.length > 0) {
-      setError(
-        `${invalidFields
-          .map(([key]) => key.replace(/_/g, " "))
-          .join(", ")} cannot have negative values.`
-      );
+  
+    if (existingStat) {
+      setError("This player already has statistics recorded for this game.");
       return;
     }
-
-    setError("");
-
+  
+    if (
+      points < 0 ||
+      assists < 0 ||
+      rebounds < 0 ||
+      steals < 0 ||
+      blocks < 0 ||
+      minutes < 0 ||
+      fouls < 0 ||
+      turnovers < 0 ||
+      fg_pct < 0 ||
+      three_p_pct < 0 ||
+      ft_pct < 0
+    ) {
+      setError("Statistic values cannot be negative.");
+      return;
+    }
+  
+    if (fg_pct > 100 || three_p_pct > 100 || ft_pct > 100) {
+      setError("Percentage stats cannot exceed 100.");
+      return;
+    }
+  
+    if (minutes > 40) {
+      setError("Minutes cannot exceed 40.");
+      return;
+    }
+  
+    if (points > 0 && fg_pct === 0 && ft_pct === 0) {
+      setError("If a player has points, either FG% or FT% must be greater than 0.");
+      return;
+    }
+  
+    if (fouls > 5) {
+      setError("Fouls cannot exceed 5.");
+      return;
+    }
+  
+    const game = games.find((g) => g.id === game_id);
+    const player = players.find((p) => p.id === player_id);
+    if (game && player) {
+      if (
+        player.team_id !== game.home_team_id &&
+        player.team_id !== game.away_team_id
+      ) {
+        setError("Player must belong to one of the teams playing in the game.");
+        return;
+      }
+    } else {
+      setError("Invalid game or player selection.");
+      return;
+    }
+  
+    setError(""); 
     addStatistic(newStat)
       .then(() => {
         fetchStatistics().then((res) => setStatistics(res.data.statistics));
@@ -93,6 +155,8 @@ const Statistics = () => {
       })
       .catch((err) => console.error(err));
   };
+  
+  
 
   const handleDeleteStatistic = (id) => {
     deleteStatistic(id)
@@ -101,27 +165,89 @@ const Statistics = () => {
   };
 
   const handleUpdateStatistic = (id, updatedStat) => {
-    if (!updatedStat.player_id || !updatedStat.game_id) {
+    const {
+      points,
+      assists,
+      rebounds,
+      steals,
+      blocks,
+      minutes,
+      fouls,
+      turnovers,
+      fg_pct,
+      three_p_pct,
+      ft_pct,
+      player_id,
+      game_id,
+    } = updatedStat;
+  
+    if (!player_id || !game_id) {
       setError("Player and Game are required fields.");
       return;
     }
 
-    const invalidFields = Object.entries(updatedStat).filter(
-      ([key, value]) =>
-        key !== "player_id" && key !== "game_id" && value < 0
+    const existingStat = statistics.find(
+      (stat) => stat.player_id === player_id && stat.game_id === game_id
     );
-
-    if (invalidFields.length > 0) {
-      setError(
-        `${invalidFields
-          .map(([key]) => key.replace(/_/g, " "))
-          .join(", ")} cannot have negative values.`
-      );
+  
+    if (existingStat) {
+      setError("This player already has statistics recorded for this game.");
       return;
     }
-
+  
+    if (
+      points < 0 ||
+      assists < 0 ||
+      rebounds < 0 ||
+      steals < 0 ||
+      blocks < 0 ||
+      minutes < 0 ||
+      fouls < 0 ||
+      turnovers < 0 ||
+      fg_pct < 0 ||
+      three_p_pct < 0 ||
+      ft_pct < 0
+    ) {
+      setError("Statistic values cannot be negative.");
+      return;
+    }
+  
+    if (fg_pct > 100 || three_p_pct > 100 || ft_pct > 100) {
+      setError("Percentage stats cannot exceed 100.");
+      return;
+    }
+  
+    if (minutes > 40) {
+      setError("Minutes cannot exceed 40.");
+      return;
+    }
+  
+    if (points > 0 && fg_pct === 0 && ft_pct === 0) {
+      setError("If a player has points, either FG% or FT% must be greater than 0.");
+      return;
+    }
+  
+    if (fouls > 5) {
+      setError("Fouls cannot exceed 5.");
+      return;
+    }
+  
+    const game = games.find((g) => g.id === game_id);
+    const player = players.find((p) => p.id === player_id);
+    if (game && player) {
+      if (
+        player.team_id !== game.home_team_id &&
+        player.team_id !== game.away_team_id
+      ) {
+        setError("Player must belong to one of the teams playing in the game.");
+        return;
+      }
+    } else {
+      setError("Invalid game or player selection.");
+      return;
+    }
+  
     setError("");
-
     updateStatistic(id, updatedStat)
       .then(() => {
         fetchStatistics().then((res) => setStatistics(res.data.statistics));
@@ -129,6 +255,8 @@ const Statistics = () => {
       })
       .catch((err) => console.error(err));
   };
+  
+  
 
   const getTeamName = (teamId) => {
     const team = teams.find((team) => team.id === teamId);

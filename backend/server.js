@@ -23,9 +23,6 @@ pool
     console.log("Didn't connect");
   });
 
-
-// TODO: Uncomment this after we figure out and add schema.
-
 (async () => {
   try {
     await pool.query(`
@@ -93,13 +90,73 @@ pool
         game_id INT REFERENCES games(id) ON DELETE CASCADE
     );
 
+
+    CREATE OR REPLACE FUNCTION update_team_records()
+    RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.home_score > NEW.away_score THEN
+        UPDATE teams SET wins = wins + 1 WHERE id = NEW.home_team_id;
+        UPDATE teams SET losses = losses + 1 WHERE id = NEW.away_team_id;
+    ELSIF NEW.home_score < NEW.away_score THEN
+        UPDATE teams SET wins = wins + 1 WHERE id = NEW.away_team_id;
+        UPDATE teams SET losses = losses + 1 WHERE id = NEW.home_team_id;
+    ELSE
+        RAISE NOTICE 'Tie games are not handled.';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgname = 'trg_update_team_records'
+    ) THEN
+        CREATE TRIGGER trg_update_team_records
+        AFTER INSERT ON games
+        FOR EACH ROW
+        EXECUTE FUNCTION update_team_records();
+    END IF;
+END $$;
+
+CREATE OR REPLACE FUNCTION check_unique_jersey_num()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM players
+        WHERE team_id = NEW.team_id
+          AND jersey_num = NEW.jersey_num
+    ) THEN
+        RAISE EXCEPTION 'Jersey number % already exists for team %', NEW.jersey_num, NEW.team_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgname = 'trg_unique_jersey_num'
+    ) THEN
+        CREATE TRIGGER trg_unique_jersey_num
+        BEFORE INSERT ON players
+        FOR EACH ROW
+        EXECUTE FUNCTION check_unique_jersey_num();
+    END IF;
+END $$;
+
    `);
     console.log("Tables created successfully");
   } catch (error) {
     console.error("Error creating tables:", error);
   }
 })();
-
 
 
 
@@ -170,6 +227,22 @@ app.post("/add-team", async (req, res) => {
       return res.status(400).json({ error: "Name and division are required" });
     }
 
+    if (wins < 0 || losses < 0){
+      return res.status(400).json({ error: "Wins and Losses cannot be negative" });
+    }
+
+    if (wins > 40 || losses > 40 || (wins + losses) > 40){
+      return res.status(400).json({ error: "A college basketball teams play no more than 40 games in a season" });
+    }
+
+    if (top_25 && (rank > 25)){
+      return res.status(400).json({ error: "A team in the top 25 cannot be ranked lower than 25" });
+    }
+    
+    if (top_25 && (rank === null || rank < 1)){
+      return res.status(400).json({ error: "A team in the top 25 cannot be ranked higher than 1" });
+    }
+
     const result = await pool.query(`
       INSERT INTO teams (name, division, wins, losses, top_25, rank)
       VALUES ($1, $2, $3, $4, $5, $6)
@@ -209,6 +282,10 @@ app.post("/add-player", async (req, res) => {
     if (jersey_num !== undefined && (typeof jersey_num !== 'number' || jersey_num < 0 || jersey_num > 99)) {
       return res.status(400).json({ error: "Jersey number must be an integer between 0 and 99." });
     }
+    
+    if (height_inches < 0 || weight_lbs < 0 ) {
+      return res.status(400).json({ error: "Player height and weight cannot be negative" });
+    }
 
     if (playerClass !== undefined && (typeof playerClass !== 'number' || playerClass < 2016)) {
       return res.status(400).json({ error: "Class must be an integer of 2016 or later." });
@@ -216,6 +293,17 @@ app.post("/add-player", async (req, res) => {
 
     if (team_id !== undefined && (typeof team_id !== 'number' || team_id <= 0)) {
       return res.status(400).json({ error: "team_id must be a positive integer." });
+    }
+
+    const duplicateCheck = await pool.query(
+      "SELECT * FROM players WHERE team_id = $1 AND jersey_num = $2",
+      [team_id, jersey_num]
+    );
+
+    if (duplicateCheck.rows.length > 0) {
+      return res.status(400).json({
+        error: `Jersey number ${jersey_num} is already taken by another player on this team.`,
+      });
     }
 
     const result = await pool.query(
@@ -269,6 +357,32 @@ app.post("/add-game", async (req, res) => {
     ) {
       return res.status(400).json({
         error: "Scheduled date, home_score, away_score, home_team_id, and away_team_id are required fields."
+      });
+    }
+
+    const teamConflict = await pool.query(
+      `SELECT * FROM games
+       WHERE DATE(scheduled_date) = $1
+       AND (home_team_id = $2 OR away_team_id = $2 OR home_team_id = $3 OR away_team_id = $3)`,
+      [scheduled_date, home_team_id, away_team_id]
+    );
+
+    if (teamConflict.rows.length > 0) {
+      return res.status(400).json({ error: "A team cannot be scheduled for two games on the same day." });
+    }
+
+    if (
+      home_score < 0 ||
+      away_score < 0
+    ) {
+      return res.status(400).json({
+        error: "Scores cannot be negative"
+      });
+    }
+
+    if (home_team_id === away_team_id) {
+      return res.status(400).json({
+        error: "Home and Away teams cannot be the same.",
       });
     }
 
@@ -358,6 +472,65 @@ app.post("/add-statistic", async (req, res) => {
       });
     }
 
+    if (points < 0 || assists < 0 || rebounds < 0 || steals < 0 || blocks < 0 || minutes < 0 || fouls < 0 || turnovers < 0 || fg_pct < 0 || three_p_pct < 0 || ft_pct < 0) {
+      return res.status(400).json({
+        error: "Player stats cannot be negative"
+      });
+    }
+
+    if (fg_pct > 100 || three_p_pct > 100 || ft_pct > 100) {
+      return res.status(400).json({
+        error: "Player percentage stats cannot be greater than 100"
+      });
+    }
+
+    if (points > 0 && fg_pct === 0 && ft_pct === 0) {
+      setError("If a player has points either FG% or FT% must be greater than 0.");
+      return;
+    }
+
+    if (minutes > 40) {
+      return res.status(400).json({
+        error: "Player minutes cannot be longer than 40 minutes"
+      });
+    }
+
+    if (fouls > 5) {
+      return res.status(400).json({
+        error: "Player fouls out after 5 fouls"
+      });
+    }
+
+    const duplicateCheck = await pool.query(
+      "SELECT * FROM statistics WHERE player_id = $1 AND game_id = $2",
+      [player_id, game_id]
+    );
+
+    if (duplicateCheck.rows.length > 0) {
+      return res.status(400).json({
+        error: "This player already has statistics recorded for this game.",
+      });
+    }
+
+    // player - team validation
+    const game = await pool.query("SELECT home_team_id, away_team_id FROM games WHERE id = $1", [game_id]);
+    const player = await pool.query("SELECT team_id FROM players WHERE id = $1", [player_id]);
+
+    if (game.rows.length === 0 || player.rows.length === 0) {
+      return res.status(400).json({
+        error: "Invalid game or player selection.",
+      });
+    }
+
+    const { home_team_id, away_team_id } = game.rows[0];
+    const { team_id } = player.rows[0];
+
+    if (team_id !== home_team_id && team_id !== away_team_id) {
+      return res.status(400).json({
+        error: "Player must belong to one of the teams playing in the game.",
+      });
+    }
+
     const result = await pool.query(`
       INSERT INTO statistics (
         points, assists, rebounds, steals, blocks, minutes, fouls, turnovers,
@@ -432,6 +605,22 @@ app.put("/update-team/:id", async (req, res) => {
     if (!name || !division) {
       return res.status(400).json({ error: "Name and division are required" });
     }
+
+    if (wins < 0 || losses < 0){
+      return res.status(400).json({ error: "Wins and Losses cannot be negative" });
+    }
+
+    if (wins > 40 || losses > 40 || (wins + losses) > 40){
+      return res.status(400).json({ error: "A college basketball teams play no more than 40 games in a season" });
+    }
+
+    if (top_25 && (rank > 25)){
+      return res.status(400).json({ error: "A team in the top 25 cannot be ranked lower than 25" });
+    }
+    
+    if (top_25 && (rank < 1)){
+      return res.status(400).json({ error: "A team in the top 25 cannot be ranked higher than 1" });
+    }
     const existingRecord = await pool.query(`
       SELECT * FROM teams WHERE id = $1
       `, [id]);
@@ -487,12 +676,27 @@ app.put("/update-player/:id", async (req, res) => {
       return res.status(400).json({ error: "Jersey number must be an integer between 0 and 99." });
     }
 
+    if (height_inches < 0 || weight_lbs < 0 ) {
+      return res.status(400).json({ error: "Player height and weight cannot be negative" });
+    }
+
     if (playerClass !== undefined && (typeof playerClass !== 'number' || playerClass < 2016)) {
       return res.status(400).json({ error: "Class must be an integer of 2016 or later." });
     }
 
     if (team_id !== undefined && (typeof team_id !== 'number' || team_id <= 0)) {
       return res.status(400).json({ error: "team_id must be a positive integer." });
+    }
+
+    const duplicateCheck = await pool.query(
+      "SELECT * FROM players WHERE team_id = $1 AND jersey_num = $2",
+      [team_id, jersey_num]
+    );
+
+    if (duplicateCheck.rows.length > 0) {
+      return res.status(400).json({
+        error: `Jersey number ${jersey_num} is already taken by another player on this team.`,
+      });
     }
 
     const existingRecord = await pool.query(`
@@ -555,6 +759,32 @@ app.put("/update-game/:id", async (req, res) => {
       return res.status(400).json({
         error: "Scheduled date, home_score, away_score, home_team_id, and away_team_id are required fields."
       })
+    }
+
+    if (home_team_id === away_team_id) {
+      return res.status(400).json({
+        error: "Home and Away teams cannot be the same.",
+      });
+    }
+
+    const teamConflict = await pool.query(
+      `SELECT * FROM games
+       WHERE DATE(scheduled_date) = $1
+       AND (home_team_id = $2 OR away_team_id = $2 OR home_team_id = $3 OR away_team_id = $3)`,
+      [scheduled_date, home_team_id, away_team_id]
+    );
+
+    if (teamConflict.rows.length > 0) {
+      return res.status(400).json({ error: "A team cannot be scheduled for two games on the same day." });
+    }
+
+    if (
+      home_score < 0 ||
+      away_score < 0
+    ) {
+      return res.status(400).json({
+        error: "Scores cannot be negative"
+      });
     }
 
     const existingRecord = await pool.query(`
@@ -626,6 +856,65 @@ app.put("/update-statistic/:id", async (req, res) => {
     if (!player_id || !game_id) {
       return res.status(400).json({
         error: "player_id and game_id are required fields."
+      });
+    }
+
+    if (points < 0 || assists < 0 || rebounds < 0 || steals < 0 || blocks < 0 || minutes < 0 || fouls < 0 || turnovers < 0 || fg_pct < 0 || three_p_pct < 0 || ft_pct < 0) {
+      return res.status(400).json({
+        error: "Player stats cannot be negative"
+      });
+    }
+
+    if (fg_pct > 100 || three_p_pct > 100 || ft_pct > 100) {
+      return res.status(400).json({
+        error: "Player percentage stats cannot be greater than 100"
+      });
+    }
+
+    if (points > 0 && fg_pct === 0 && ft_pct === 0) {
+      setError("If a player has points either FG% or FT% must be greater than 0.");
+      return;
+    }
+
+    if (minutes > 40) {
+      return res.status(400).json({
+        error: "Player minutes cannot be longer than 40 minutes"
+      });
+    }
+
+    if (fouls > 5) {
+      return res.status(400).json({
+        error: "Player fouls out after 5 fouls"
+      });
+    }
+
+    const duplicateCheck = await pool.query(
+      "SELECT * FROM statistics WHERE player_id = $1 AND game_id = $2",
+      [player_id, game_id]
+    );
+
+    if (duplicateCheck.rows.length > 0) {
+      return res.status(400).json({
+        error: "This player already has statistics recorded for this game.",
+      });
+    }
+
+    // player - team validation
+    const game = await pool.query("SELECT home_team_id, away_team_id FROM games WHERE id = $1", [game_id]);
+    const player = await pool.query("SELECT team_id FROM players WHERE id = $1", [player_id]);
+
+    if (game.rows.length === 0 || player.rows.length === 0) {
+      return res.status(400).json({
+        error: "Invalid game or player selection.",
+      });
+    }
+
+    const { home_team_id, away_team_id } = game.rows[0];
+    const { team_id } = player.rows[0];
+
+    if (team_id !== home_team_id && team_id !== away_team_id) {
+      return res.status(400).json({
+        error: "Player must belong to one of the teams playing in the game.",
       });
     }
 
@@ -733,5 +1022,4 @@ app.get("/get-statistics", async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`)
-  console.log(`http://localhost:${PORT}/`)
 })
