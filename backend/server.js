@@ -23,9 +23,6 @@ pool
     console.log("Didn't connect");
   });
 
-
-// TODO: Uncomment this after we figure out and add schema.
-
 (async () => {
   try {
     await pool.query(`
@@ -170,6 +167,22 @@ app.post("/add-team", async (req, res) => {
       return res.status(400).json({ error: "Name and division are required" });
     }
 
+    if (wins < 0 || losses < 0){
+      return res.status(400).json({ error: "Wins and Losses cannot be negative" });
+    }
+
+    if (wins > 40 || losses > 40 || (wins + losses) > 40){
+      return res.status(400).json({ error: "A college basketball teams play no more than 40 games in a season" });
+    }
+
+    if (top_25 && (rank > 25)){
+      return res.status(400).json({ error: "A team in the top 25 cannot be ranked lower than 25" });
+    }
+    
+    if (top_25 && (rank < 1)){
+      return res.status(400).json({ error: "A team in the top 25 cannot be ranked higher than 1" });
+    }
+
     const result = await pool.query(`
       INSERT INTO teams (name, division, wins, losses, top_25, rank)
       VALUES ($1, $2, $3, $4, $5, $6)
@@ -208,6 +221,10 @@ app.post("/add-player", async (req, res) => {
 
     if (jersey_num !== undefined && (typeof jersey_num !== 'number' || jersey_num < 0 || jersey_num > 99)) {
       return res.status(400).json({ error: "Jersey number must be an integer between 0 and 99." });
+    }
+    
+    if (height_inches < 0 || weight_lbs < 0 ) {
+      return res.status(400).json({ error: "Player height and weight cannot be negative" });
     }
 
     if (playerClass !== undefined && (typeof playerClass !== 'number' || playerClass < 2016)) {
@@ -269,6 +286,15 @@ app.post("/add-game", async (req, res) => {
     ) {
       return res.status(400).json({
         error: "Scheduled date, home_score, away_score, home_team_id, and away_team_id are required fields."
+      });
+    }
+
+    if (
+      home_score < 0 ||
+      away_score < 0
+    ) {
+      return res.status(400).json({
+        error: "Scores cannot be negative"
       });
     }
 
@@ -358,6 +384,29 @@ app.post("/add-statistic", async (req, res) => {
       });
     }
 
+    if (points < 0 || assists < 0 || rebounds < 0 || steals < 0 || blocks < 0 || minutes < 0 || fouls < 0 || turnovers < 0 || fg_pct < 0 || three_p_pct < 0 || ft_pct < 0) {
+      return res.status(400).json({
+        error: "Player stats cannot be negative"
+      });
+    }
+
+    if (fg_pct > 100 || three_p_pct > 100 || ft_pct > 100) {
+      return res.status(400).json({
+        error: "Player percentage stats cannot be greater than 100"
+      });
+    }
+
+    if (points > 0 && fg_pct === 0 && ft_pct === 0) {
+      setError("If a player has points either FG% or FT% must be greater than 0.");
+      return;
+    }
+
+    if (minutes > 40) {
+      return res.status(400).json({
+        error: "Player minutes cannot be longer than 40 minutes"
+      });
+    }
+
     const result = await pool.query(`
       INSERT INTO statistics (
         points, assists, rebounds, steals, blocks, minutes, fouls, turnovers,
@@ -432,6 +481,22 @@ app.put("/update-team/:id", async (req, res) => {
     if (!name || !division) {
       return res.status(400).json({ error: "Name and division are required" });
     }
+
+    if (wins < 0 || losses < 0){
+      return res.status(400).json({ error: "Wins and Losses cannot be negative" });
+    }
+
+    if (wins > 40 || losses > 40 || (wins + losses) > 40){
+      return res.status(400).json({ error: "A college basketball teams play no more than 40 games in a season" });
+    }
+
+    if (top_25 && (rank > 25)){
+      return res.status(400).json({ error: "A team in the top 25 cannot be ranked lower than 25" });
+    }
+    
+    if (top_25 && (rank < 1)){
+      return res.status(400).json({ error: "A team in the top 25 cannot be ranked higher than 1" });
+    }
     const existingRecord = await pool.query(`
       SELECT * FROM teams WHERE id = $1
       `, [id]);
@@ -485,6 +550,10 @@ app.put("/update-player/:id", async (req, res) => {
 
     if (jersey_num !== undefined && (typeof jersey_num !== 'number' || jersey_num < 0 || jersey_num > 99)) {
       return res.status(400).json({ error: "Jersey number must be an integer between 0 and 99." });
+    }
+
+    if (height_inches < 0 || weight_lbs < 0 ) {
+      return res.status(400).json({ error: "Player height and weight cannot be negative" });
     }
 
     if (playerClass !== undefined && (typeof playerClass !== 'number' || playerClass < 2016)) {
@@ -557,6 +626,15 @@ app.put("/update-game/:id", async (req, res) => {
       })
     }
 
+    if (
+      home_score < 0 ||
+      away_score < 0
+    ) {
+      return res.status(400).json({
+        error: "Scores cannot be negative"
+      });
+    }
+
     const existingRecord = await pool.query(`
       SELECT * FROM games WHERE id = $1
       `, [id]);
@@ -626,6 +704,29 @@ app.put("/update-statistic/:id", async (req, res) => {
     if (!player_id || !game_id) {
       return res.status(400).json({
         error: "player_id and game_id are required fields."
+      });
+    }
+
+    if (points < 0 || assists < 0 || rebounds < 0 || steals < 0 || blocks < 0 || minutes < 0 || fouls < 0 || turnovers < 0 || fg_pct < 0 || three_p_pct < 0 || ft_pct < 0) {
+      return res.status(400).json({
+        error: "Player stats cannot be negative"
+      });
+    }
+
+    if (fg_pct > 100 || three_p_pct > 100 || ft_pct > 100) {
+      return res.status(400).json({
+        error: "Player percentage stats cannot be greater than 100"
+      });
+    }
+
+    if (points > 0 && fg_pct === 0 && ft_pct === 0) {
+      setError("If a player has points either FG% or FT% must be greater than 0.");
+      return;
+    }
+
+    if (minutes > 40) {
+      return res.status(400).json({
+        error: "Player minutes cannot be longer than 40 minutes"
       });
     }
 
