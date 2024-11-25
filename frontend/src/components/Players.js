@@ -32,7 +32,6 @@ const Players = () => {
       setError("Name and Team are required fields.");
       return;
     }
-
     setError("");
 
     addPlayer(newPlayer)
@@ -63,7 +62,6 @@ const Players = () => {
       setError("Name and Team are required fields.");
       return;
     }
-
     setError("");
 
     updatePlayer(id, updatedPlayer)
@@ -84,113 +82,381 @@ const Players = () => {
   };
 
   return (
-    <div>
-      <h1>Players</h1>
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      <ul>
-        {players.map((player) =>
-          editMode === player.id ? (
-            <li key={player.id}>
+    <div className="p-6 bg-base-200 min-h-screen">
+      <div className="max-w-5xl mx-auto">
+        <h1 className="text-3xl font-bold text-center mb-6">Players</h1>
+        {error && (
+          <div className="alert alert-error shadow-lg mb-4">
+            <div>
+              <span>{error}</span>
+            </div>
+          </div>
+        )}
+
+        <ul className="space-y-4">
+          {players.map((player) =>
+            editMode === player.id ? (
+              <li key={player.id} className="card bg-base-100 shadow-md p-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="label">
+                      <span className="label-text">Name</span>
+                    </label>
+                    <input
+                      className="input input-bordered"
+                      type="text"
+                      value={player.name || ""}
+                      onChange={(e) =>
+                        setPlayers((prev) =>
+                          prev.map((p) =>
+                            p.id === player.id
+                              ? { ...p, name: e.target.value }
+                              : p
+                          )
+                        )
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="label">
+                      <span className="label-text">Position</span>
+                    </label>
+                    <input
+                      className="input input-bordered"
+                      type="text"
+                      value={player.position || ""}
+                      onChange={(e) =>
+                        setPlayers((prev) =>
+                          prev.map((p) =>
+                            p.id === player.id
+                              ? { ...p, position: e.target.value }
+                              : p
+                          )
+                        )
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="label">
+                      <span className="label-text">Jersey Number</span>
+                    </label>
+                    <input
+                      className="input input-bordered"
+                      type="number"
+                      value={player.jersey_num || ""}
+                      onChange={(e) =>
+                        setPlayers((prev) =>
+                          prev.map((p) =>
+                            p.id === player.id
+                              ? {
+                                  ...p,
+                                  jersey_num: parseInt(e.target.value, 10),
+                                }
+                              : p
+                          )
+                        )
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="label">
+                      <span className="label-text">Height (in)</span>
+                    </label>
+                    <input
+                      className="input input-bordered"
+                      type="number"
+                      value={player.height_inches || ""}
+                      onChange={(e) =>
+                        setPlayers((prev) =>
+                          prev.map((p) =>
+                            p.id === player.id
+                              ? {
+                                  ...p,
+                                  height_inches: parseFloat(e.target.value),
+                                }
+                              : p
+                          )
+                        )
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="label">
+                      <span className="label-text">Weight (lbs)</span>
+                    </label>
+                    <input
+                      className="input input-bordered"
+                      type="number"
+                      value={player.weight_lbs || ""}
+                      onChange={(e) =>
+                        setPlayers((prev) =>
+                          prev.map((p) =>
+                            p.id === player.id
+                              ? {
+                                  ...p,
+                                  weight_lbs: parseFloat(e.target.value),
+                                }
+                              : p
+                          )
+                        )
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="label">
+                      <span className="label-text">Class</span>
+                    </label>
+                    <input
+                      className="input input-bordered"
+                      type="number"
+                      value={player.class || ""}
+                      onChange={(e) =>
+                        setPlayers((prev) =>
+                          prev.map((p) =>
+                            p.id === player.id
+                              ? {
+                                  ...p,
+                                  class: parseInt(e.target.value, 10),
+                                }
+                              : p
+                          )
+                        )
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="label">
+                      <span className="label-text">Injured</span>
+                    </label>
+                    <input
+                      type="checkbox"
+                      className="checkbox"
+                      checked={player.injured || false}
+                      onChange={(e) =>
+                        setPlayers((prev) =>
+                          prev.map((p) =>
+                            p.id === player.id
+                              ? { ...p, injured: e.target.checked }
+                              : p
+                          )
+                        )
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="label">
+                      <span className="label-text">Team</span>
+                    </label>
+                    <select
+                      className="select select-bordered"
+                      value={player.team_id || ""}
+                      onChange={(e) =>
+                        setPlayers((prev) =>
+                          prev.map((p) =>
+                            p.id === player.id
+                              ? {
+                                  ...p,
+                                  team_id: parseInt(e.target.value, 10),
+                                }
+                              : p
+                          )
+                        )
+                      }
+                    >
+                      <option value="">Select Team</option>
+                      {teams.map((team) => (
+                        <option key={team.id} value={team.id}>
+                          {team.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex justify-end space-x-2 mt-4">
+                  <button
+                    className="btn btn-success"
+                    onClick={() =>
+                      handleUpdatePlayer(player.id, {
+                        name: player.name,
+                        position: player.position,
+                        jersey_num: player.jersey_num,
+                        height_inches: player.height_inches,
+                        weight_lbs: player.weight_lbs,
+                        class: player.class,
+                        injured: player.injured,
+                        team_id: player.team_id,
+                      })
+                    }
+                  >
+                    Save
+                  </button>
+                  <button
+                    className="btn btn-outline"
+                    onClick={() => setEditMode(null)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </li>
+            ) : (
+              <li key={player.id} className="card bg-base-100 shadow-md p-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="font-bold">{player.name}</h3>
+                    <p>
+                      Position: {player.position} | Jersey: {player.jersey_num} | Team:{" "}
+                      {getTeamName(player.team_id)}
+                    </p>
+                    <p>
+                      Height: {player.height_inches} in | Weight: {player.weight_lbs} lbs | Class:{" "}
+                      {player.class}
+                    </p>
+                    <p>Injured: {player.injured ? "Yes" : "No"}</p>
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      className="btn btn-info btn-sm"
+                      onClick={() => setEditMode(player.id)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="btn btn-error btn-sm"
+                      onClick={() => handleDeletePlayer(player.id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </li>
+            )
+          )}
+        </ul>
+
+        <div className="card bg-base-100 shadow-md p-6 mt-6">
+          <h3 className="text-xl font-bold mb-4">Add a New Player</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="label">
+                <span className="label-text">Name</span>
+              </label>
               <input
+                className="input input-bordered"
                 type="text"
-                value={player.name || ""}
+                placeholder="Name"
+                value={newPlayer.name}
                 onChange={(e) =>
-                  setPlayers((prev) =>
-                    prev.map((p) =>
-                      p.id === player.id ? { ...p, name: e.target.value } : p
-                    )
-                  )
+                  setNewPlayer({ ...newPlayer, name: e.target.value })
                 }
               />
+            </div>
+            <div>
+              <label className="label">
+                <span className="label-text">Position</span>
+              </label>
               <input
+                className="input input-bordered"
                 type="text"
-                value={player.position || ""}
+                placeholder="Position"
+                value={newPlayer.position}
                 onChange={(e) =>
-                  setPlayers((prev) =>
-                    prev.map((p) =>
-                      p.id === player.id ? { ...p, position: e.target.value } : p
-                    )
-                  )
+                  setNewPlayer({ ...newPlayer, position: e.target.value })
                 }
               />
+            </div>
+            <div>
+              <label className="label">
+                <span className="label-text">Jersey Number</span>
+              </label>
               <input
+                className="input input-bordered"
                 type="number"
-                value={player.jersey_num || ""}
+                placeholder="Jersey Number"
+                value={newPlayer.jersey_num || ""}
                 onChange={(e) =>
-                  setPlayers((prev) =>
-                    prev.map((p) =>
-                      p.id === player.id
-                        ? { ...p, jersey_num: parseInt(e.target.value, 10) }
-                        : p
-                    )
-                  )
+                  setNewPlayer({
+                    ...newPlayer,
+                    jersey_num: parseInt(e.target.value, 10),
+                  })
                 }
               />
+            </div>
+            <div>
+              <label className="label">
+                <span className="label-text">Height (in)</span>
+              </label>
               <input
+                className="input input-bordered"
                 type="number"
-                value={player.height_inches || ""}
+                placeholder="Height"
+                value={newPlayer.height_inches || ""}
                 onChange={(e) =>
-                  setPlayers((prev) =>
-                    prev.map((p) =>
-                      p.id === player.id
-                        ? { ...p, height_inches: parseFloat(e.target.value) }
-                        : p
-                    )
-                  )
+                  setNewPlayer({
+                    ...newPlayer,
+                    height_inches: parseFloat(e.target.value),
+                  })
                 }
               />
+            </div>
+            <div>
+              <label className="label">
+                <span className="label-text">Weight (lbs)</span>
+              </label>
               <input
+                className="input input-bordered"
                 type="number"
-                value={player.weight_lbs || ""}
+                placeholder="Weight"
+                value={newPlayer.weight_lbs || ""}
                 onChange={(e) =>
-                  setPlayers((prev) =>
-                    prev.map((p) =>
-                      p.id === player.id
-                        ? { ...p, weight_lbs: parseFloat(e.target.value) }
-                        : p
-                    )
-                  )
+                  setNewPlayer({
+                    ...newPlayer,
+                    weight_lbs: parseFloat(e.target.value),
+                  })
                 }
               />
+            </div>
+            <div>
+              <label className="label">
+                <span className="label-text">Class</span>
+              </label>
               <input
+                className="input input-bordered"
                 type="number"
-                value={player.class || ""}
+                placeholder="Class"
+                value={newPlayer.class}
                 onChange={(e) =>
-                  setPlayers((prev) =>
-                    prev.map((p) =>
-                      p.id === player.id
-                        ? { ...p, class: parseInt(e.target.value, 10) }
-                        : p
-                    )
-                  )
+                  setNewPlayer({
+                    ...newPlayer,
+                    class: parseInt(e.target.value, 10),
+                  })
                 }
               />
-              <label>
-                <input
-                  type="checkbox"
-                  checked={player.injured || false}
-                  onChange={(e) =>
-                    setPlayers((prev) =>
-                      prev.map((p) =>
-                        p.id === player.id
-                          ? { ...p, injured: e.target.checked }
-                          : p
-                      )
-                    )
-                  }
-                />{" "}
-                Injured
+            </div>
+            <div>
+              <label className="label">
+                <span className="label-text">Injured</span>
+              </label>
+              <input
+                type="checkbox"
+                className="checkbox"
+                checked={newPlayer.injured}
+                onChange={(e) =>
+                  setNewPlayer({ ...newPlayer, injured: e.target.checked })
+                }
+              />
+            </div>
+            <div>
+              <label className="label">
+                <span className="label-text">Team</span>
               </label>
               <select
-                value={player.team_id || ""}
+                className="select select-bordered"
+                value={newPlayer.team_id || ""}
                 onChange={(e) =>
-                  setPlayers((prev) =>
-                    prev.map((p) =>
-                      p.id === player.id
-                        ? { ...p, team_id: parseInt(e.target.value, 10) }
-                        : p
-                    )
-                  )
+                  setNewPlayer({
+                    ...newPlayer,
+                    team_id: parseInt(e.target.value, 10),
+                  })
                 }
               >
                 <option value="">Select Team</option>
@@ -200,125 +466,12 @@ const Players = () => {
                   </option>
                 ))}
               </select>
-              <button
-                onClick={() =>
-                  handleUpdatePlayer(player.id, {
-                    name: player.name,
-                    position: player.position,
-                    jersey_num: player.jersey_num,
-                    height_inches: player.height_inches,
-                    weight_lbs: player.weight_lbs,
-                    class: player.class,
-                    injured: player.injured,
-                    team_id: player.team_id,
-                  })
-                }
-              >
-                Save
-              </button>
-              <button onClick={() => setEditMode(null)}>Cancel</button>
-            </li>
-          ) : (
-            <li key={player.id}>
-              {player.name} - {player.position} | Jersey: {player.jersey_num} | Team:{" "}
-              {getTeamName(player.team_id)} | Height in Inches: {player.height_inches} | Weight
-              in Pounds: {player.weight_lbs} | Class: {player.class} | Injured:{" "}
-              {player.injured ? "Yes" : "No"}
-              <button onClick={() => setEditMode(player.id)}>Edit</button>
-              <button onClick={() => handleDeletePlayer(player.id)}>Delete</button>
-            </li>
-          )
-        )}
-      </ul>
-      <div>
-        <h3>Add a New Player</h3>
-        <label>
-          Name:
-          <input
-            type="text"
-            placeholder="Name"
-            value={newPlayer.name}
-            onChange={(e) => setNewPlayer({ ...newPlayer, name: e.target.value })}
-          />
-        </label>
-        <label>
-          Position:
-          <input
-            type="text"
-            placeholder="Position"
-            value={newPlayer.position}
-            onChange={(e) => setNewPlayer({ ...newPlayer, position: e.target.value })}
-          />
-        </label>
-        <label>
-          Jersey Number:
-          <input
-            type="number"
-            placeholder="Jersey Number"
-            value={newPlayer.jersey_num || ""}
-            onChange={(e) =>
-              setNewPlayer({ ...newPlayer, jersey_num: parseInt(e.target.value, 10) })
-            }
-          />
-        </label>
-        <label>
-          Height (in):
-          <input
-            type="number"
-            placeholder="Height"
-            value={newPlayer.height_inches || ""}
-            onChange={(e) =>
-              setNewPlayer({ ...newPlayer, height_inches: parseFloat(e.target.value) })
-            }
-          />
-        </label>
-        <label>
-          Weight (lbs):
-          <input
-            type="number"
-            placeholder="Weight"
-            value={newPlayer.weight_lbs || ""}
-            onChange={(e) =>
-              setNewPlayer({ ...newPlayer, weight_lbs: parseFloat(e.target.value) })
-            }
-          />
-        </label>
-        <label>
-          Class (Year):
-          <input
-            type="number"
-            placeholder="Class"
-            value={newPlayer.class}
-            onChange={(e) =>
-              setNewPlayer({ ...newPlayer, class: parseInt(e.target.value, 10) })
-            }
-          />
-        </label>
-        <label>
-          Injured:
-          <input
-            type="checkbox"
-            checked={newPlayer.injured}
-            onChange={(e) => setNewPlayer({ ...newPlayer, injured: e.target.checked })}
-          />
-        </label>
-        <label>
-          Team:
-          <select
-            value={newPlayer.team_id || ""}
-            onChange={(e) =>
-              setNewPlayer({ ...newPlayer, team_id: parseInt(e.target.value, 10) })
-            }
-          >
-            <option value="">Select Team</option>
-            {teams.map((team) => (
-              <option key={team.id} value={team.id}>
-                {team.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button onClick={handleAddPlayer}>Add Player</button>
+            </div>
+          </div>
+          <button className="btn btn-primary mt-4" onClick={handleAddPlayer}>
+            Add Player
+          </button>
+        </div>
       </div>
     </div>
   );
