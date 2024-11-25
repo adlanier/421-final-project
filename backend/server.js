@@ -90,13 +90,73 @@ pool
         game_id INT REFERENCES games(id) ON DELETE CASCADE
     );
 
+
+    CREATE OR REPLACE FUNCTION update_team_records()
+    RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.home_score > NEW.away_score THEN
+        UPDATE teams SET wins = wins + 1 WHERE id = NEW.home_team_id;
+        UPDATE teams SET losses = losses + 1 WHERE id = NEW.away_team_id;
+    ELSIF NEW.home_score < NEW.away_score THEN
+        UPDATE teams SET wins = wins + 1 WHERE id = NEW.away_team_id;
+        UPDATE teams SET losses = losses + 1 WHERE id = NEW.home_team_id;
+    ELSE
+        RAISE NOTICE 'Tie games are not handled.';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgname = 'trg_update_team_records'
+    ) THEN
+        CREATE TRIGGER trg_update_team_records
+        AFTER INSERT ON games
+        FOR EACH ROW
+        EXECUTE FUNCTION update_team_records();
+    END IF;
+END $$;
+
+CREATE OR REPLACE FUNCTION check_unique_jersey_num()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM players
+        WHERE team_id = NEW.team_id
+          AND jersey_num = NEW.jersey_num
+    ) THEN
+        RAISE EXCEPTION 'Jersey number % already exists for team %', NEW.jersey_num, NEW.team_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_trigger
+        WHERE tgname = 'trg_unique_jersey_num'
+    ) THEN
+        CREATE TRIGGER trg_unique_jersey_num
+        BEFORE INSERT ON players
+        FOR EACH ROW
+        EXECUTE FUNCTION check_unique_jersey_num();
+    END IF;
+END $$;
+
    `);
     console.log("Tables created successfully");
   } catch (error) {
     console.error("Error creating tables:", error);
   }
 })();
-
 
 
 
@@ -834,5 +894,4 @@ app.get("/get-statistics", async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`)
-  console.log(`http://localhost:${PORT}/`)
 })
