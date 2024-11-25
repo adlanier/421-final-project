@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { fetchTeams, addTeam, deleteTeam, updateTeam } from "../api/api";
+import { fetchTeams, addTeam, deleteTeam} from "../api/api";
 
 const Teams = () => {
   const [teams, setTeams] = useState([
@@ -22,14 +22,14 @@ const Teams = () => {
     top_25: false,
     rank: null,
   });
-  const [editMode, setEditMode] = useState(null);
+  // const [editMode, setEditMode] = useState(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     // Uncomment to replace dummy data with real API data
-    // fetchTeams()
-    //   .then((res) => setTeams(res.data.teams))
-    //   .catch((err) => console.error(err));
+    fetchTeams()
+      .then((res) => setTeams(res.data.teams))
+      .catch((err) => console.error(err));
   }, []);
 
   const handleAddTeam = () => {
@@ -105,7 +105,7 @@ const Teams = () => {
                   <td className="py-2 px-4">{team.top_25 ? "Yes" : "No"}</td>
                   <td className="py-2 px-4">{team.rank || "N/A"}</td>
                   <td className="py-2 px-4 flex space-x-2">
-                    <button
+                    {/* <button
                       className="btn btn-ghost btn-xs"
                       onClick={() => setEditMode(team.id)}
                     >
@@ -123,7 +123,7 @@ const Teams = () => {
                           d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5M16.5 3.5a2.121 2.121 0 113 3L10 16l-4 1 1-4 9.5-9.5z"
                         />
                       </svg>
-                    </button>
+                    </button> */}
                     <button
                       className="btn btn-ghost btn-xs text-red-500"
                       onClick={() => handleDeleteTeam(team.id)}
