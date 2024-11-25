@@ -28,29 +28,56 @@ const Players = () => {
   }, []);
 
   const handleAddPlayer = () => {
-    if (!newPlayer.name || !newPlayer.team_id) {
+    const { name, jersey_num, height_inches, weight_lbs, class: playerClass, team_id } = newPlayer;
+  
+    if (!name || !team_id) {
       setError("Name and Team are required fields.");
       return;
     }
+  
+    if (jersey_num !== null && (jersey_num < 0 || jersey_num > 99)) {
+      setError("Jersey number must be between 0 and 99.");
+      return;
+    }
+  
+    if (playerClass !== null && playerClass < 2016) {
+      setError("Class must be 2016 or later.");
+      return;
+    }
 
+    if ( height_inches < 0 || weight_lbs  < 0 ) {
+     setError("Player height or weight cannot be negative");
+     return;
+    }
+
+  // Check if a player with the same jersey number exists on the same team
+  const existingPlayer = players.find(
+    (player) => player.team_id === team_id && player.jersey_num === jersey_num
+  );
+
+  if (existingPlayer) {
+    setError(
+      `Jersey number ${jersey_num} is already taken by another player on this team.`
+    );
+    return;
+  }
+  
     setError("");
-
     addPlayer(newPlayer)
-      .then(() => {
-        fetchPlayers().then((res) => setPlayers(res.data.players));
-        setNewPlayer({
-          name: "",
-          position: "",
-          jersey_num: null,
-          height_inches: null,
-          weight_lbs: null,
-          class: 2023,
-          injured: false,
-          team_id: null,
-        });
-      })
-      .catch((err) => console.error(err));
-  };
+    .then(() => {
+      fetchPlayers().then((res) => setPlayers(res.data.players));
+      setNewPlayer({
+        name: "",
+        jersey_num: null,
+        height_inches: null,
+        weight_lbs: null,
+        class: null,
+        team_id: null,
+      });
+    })
+    .catch((err) => console.error(err));
+};
+  
 
   const handleDeletePlayer = (id) => {
     deletePlayer(id)
@@ -59,13 +86,41 @@ const Players = () => {
   };
 
   const handleUpdatePlayer = (id, updatedPlayer) => {
-    if (!updatedPlayer.name || !updatedPlayer.team_id) {
+    const { name, jersey_num, height_inches, weight_lbs , class: playerClass, team_id } = updatedPlayer;
+  
+    if (!name || !team_id) {
       setError("Name and Team are required fields.");
       return;
     }
+  
+    if (jersey_num !== null && (jersey_num < 0 || jersey_num > 99)) {
+      setError("Jersey number must be between 0 and 99.");
+      return;
+    }
+  
+    if (playerClass !== null && playerClass < 2016) {
+      setError("Class must be 2016 or later.");
+      return;
+    }
+    
+    if ( height_inches < 0 || weight_lbs  < 0 ) {
+      setError("Player height or weight cannot be negative");
+      return;
+     }
 
-    setError("");
+    // Check if a player with the same jersey number exists on the same team
+    const existingPlayer = players.find(
+      (player) => player.team_id === team_id && player.jersey_num === jersey_num
+    );
 
+    if (existingPlayer) {
+    setError(
+        `Jersey number ${jersey_num} is already taken by another player on this team.`
+      );
+      return;
+    }
+  
+    setError(""); 
     updatePlayer(id, updatedPlayer)
       .then(() => {
         setPlayers((prevPlayers) =>
@@ -77,6 +132,7 @@ const Players = () => {
       })
       .catch((err) => console.error(err));
   };
+  
 
   const getTeamName = (team_id) => {
     const team = teams.find((team) => team.id === team_id);

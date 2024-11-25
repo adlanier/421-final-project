@@ -179,7 +179,7 @@ app.post("/add-team", async (req, res) => {
       return res.status(400).json({ error: "A team in the top 25 cannot be ranked lower than 25" });
     }
     
-    if (top_25 && (rank < 1)){
+    if (top_25 && (rank === null || rank < 1)){
       return res.status(400).json({ error: "A team in the top 25 cannot be ranked higher than 1" });
     }
 
@@ -233,6 +233,17 @@ app.post("/add-player", async (req, res) => {
 
     if (team_id !== undefined && (typeof team_id !== 'number' || team_id <= 0)) {
       return res.status(400).json({ error: "team_id must be a positive integer." });
+    }
+
+    const duplicateCheck = await pool.query(
+      "SELECT * FROM players WHERE team_id = $1 AND jersey_num = $2",
+      [team_id, jersey_num]
+    );
+
+    if (duplicateCheck.rows.length > 0) {
+      return res.status(400).json({
+        error: `Jersey number ${jersey_num} is already taken by another player on this team.`,
+      });
     }
 
     const result = await pool.query(
@@ -289,12 +300,29 @@ app.post("/add-game", async (req, res) => {
       });
     }
 
+    const teamConflict = await pool.query(
+      `SELECT * FROM games
+       WHERE DATE(scheduled_date) = $1
+       AND (home_team_id = $2 OR away_team_id = $2 OR home_team_id = $3 OR away_team_id = $3)`,
+      [scheduled_date, home_team_id, away_team_id]
+    );
+
+    if (teamConflict.rows.length > 0) {
+      return res.status(400).json({ error: "A team cannot be scheduled for two games on the same day." });
+    }
+
     if (
       home_score < 0 ||
       away_score < 0
     ) {
       return res.status(400).json({
         error: "Scores cannot be negative"
+      });
+    }
+
+    if (home_team_id === away_team_id) {
+      return res.status(400).json({
+        error: "Home and Away teams cannot be the same.",
       });
     }
 
@@ -404,6 +432,42 @@ app.post("/add-statistic", async (req, res) => {
     if (minutes > 40) {
       return res.status(400).json({
         error: "Player minutes cannot be longer than 40 minutes"
+      });
+    }
+
+    if (fouls > 5) {
+      return res.status(400).json({
+        error: "Player fouls out after 5 fouls"
+      });
+    }
+
+    const duplicateCheck = await pool.query(
+      "SELECT * FROM statistics WHERE player_id = $1 AND game_id = $2",
+      [player_id, game_id]
+    );
+
+    if (duplicateCheck.rows.length > 0) {
+      return res.status(400).json({
+        error: "This player already has statistics recorded for this game.",
+      });
+    }
+
+    // player - team validation
+    const game = await pool.query("SELECT home_team_id, away_team_id FROM games WHERE id = $1", [game_id]);
+    const player = await pool.query("SELECT team_id FROM players WHERE id = $1", [player_id]);
+
+    if (game.rows.length === 0 || player.rows.length === 0) {
+      return res.status(400).json({
+        error: "Invalid game or player selection.",
+      });
+    }
+
+    const { home_team_id, away_team_id } = game.rows[0];
+    const { team_id } = player.rows[0];
+
+    if (team_id !== home_team_id && team_id !== away_team_id) {
+      return res.status(400).json({
+        error: "Player must belong to one of the teams playing in the game.",
       });
     }
 
@@ -564,6 +628,17 @@ app.put("/update-player/:id", async (req, res) => {
       return res.status(400).json({ error: "team_id must be a positive integer." });
     }
 
+    const duplicateCheck = await pool.query(
+      "SELECT * FROM players WHERE team_id = $1 AND jersey_num = $2",
+      [team_id, jersey_num]
+    );
+
+    if (duplicateCheck.rows.length > 0) {
+      return res.status(400).json({
+        error: `Jersey number ${jersey_num} is already taken by another player on this team.`,
+      });
+    }
+
     const existingRecord = await pool.query(`
       SELECT * FROM players WHERE id = $1
       `, [id]);
@@ -624,6 +699,23 @@ app.put("/update-game/:id", async (req, res) => {
       return res.status(400).json({
         error: "Scheduled date, home_score, away_score, home_team_id, and away_team_id are required fields."
       })
+    }
+
+    if (home_team_id === away_team_id) {
+      return res.status(400).json({
+        error: "Home and Away teams cannot be the same.",
+      });
+    }
+
+    const teamConflict = await pool.query(
+      `SELECT * FROM games
+       WHERE DATE(scheduled_date) = $1
+       AND (home_team_id = $2 OR away_team_id = $2 OR home_team_id = $3 OR away_team_id = $3)`,
+      [scheduled_date, home_team_id, away_team_id]
+    );
+
+    if (teamConflict.rows.length > 0) {
+      return res.status(400).json({ error: "A team cannot be scheduled for two games on the same day." });
     }
 
     if (
@@ -727,6 +819,42 @@ app.put("/update-statistic/:id", async (req, res) => {
     if (minutes > 40) {
       return res.status(400).json({
         error: "Player minutes cannot be longer than 40 minutes"
+      });
+    }
+
+    if (fouls > 5) {
+      return res.status(400).json({
+        error: "Player fouls out after 5 fouls"
+      });
+    }
+
+    const duplicateCheck = await pool.query(
+      "SELECT * FROM statistics WHERE player_id = $1 AND game_id = $2",
+      [player_id, game_id]
+    );
+
+    if (duplicateCheck.rows.length > 0) {
+      return res.status(400).json({
+        error: "This player already has statistics recorded for this game.",
+      });
+    }
+
+    // player - team validation
+    const game = await pool.query("SELECT home_team_id, away_team_id FROM games WHERE id = $1", [game_id]);
+    const player = await pool.query("SELECT team_id FROM players WHERE id = $1", [player_id]);
+
+    if (game.rows.length === 0 || player.rows.length === 0) {
+      return res.status(400).json({
+        error: "Invalid game or player selection.",
+      });
+    }
+
+    const { home_team_id, away_team_id } = game.rows[0];
+    const { team_id } = player.rows[0];
+
+    if (team_id !== home_team_id && team_id !== away_team_id) {
+      return res.status(400).json({
+        error: "Player must belong to one of the teams playing in the game.",
       });
     }
 

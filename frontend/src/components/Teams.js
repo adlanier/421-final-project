@@ -21,25 +21,39 @@ const Teams = () => {
   }, []);
 
   const handleAddTeam = () => {
-    if (!newTeam.name || !newTeam.division) {
-      setError("Name and Division are required.");
+    const { name, division, wins, losses, rank, top_25 } = newTeam;
+  
+    if (!name || !division) {
+      setError("Name and Division are required fields.");
       return;
     }
+  
+    if (wins < 0 || losses < 0) {
+      setError("Wins and Losses cannot be negative.");
+      return;
+    }
+
+    if (wins > 0 || losses > 0 || (wins + losses) > 40) {
+      setError("A college basketball teams play no more than 40 games in a season.");
+      return;
+    }
+  
+    if (top_25 && (rank === null || rank < 1)) {
+      setError("Rank must be between 1 and 25 if the team is in the Top 25.");
+      return;
+    }
+
+    if (top_25 && ( rank > 25)) {
+      setError("Rank must between 1 and 25 if the team is in the Top 25.");
+      return;
+    }
+  
     setError("");
     addTeam(newTeam)
-      .then(() => {
-        fetchTeams().then((res) => setTeams(res.data.teams));
-        setNewTeam({
-          name: "",
-          division: 1,
-          wins: 0,
-          losses: 0,
-          top_25: false,
-          rank: null,
-        });
-      })
+      .then(() => fetchTeams().then((res) => setTeams(res.data.teams)))
       .catch((err) => console.error(err));
   };
+  
 
   const handleDeleteTeam = (id) => {
     deleteTeam(id)
@@ -48,12 +62,35 @@ const Teams = () => {
   };
 
   const handleUpdateTeam = (id, updatedTeam) => {
-    if (!updatedTeam.name || !updatedTeam.division) {
-      setError("Name and Division are required.");
+    const { name, division, wins, losses, rank, top_25 } = updatedTeam;
+  
+    if (!name || !division) {
+      setError("Name and Division are required fields.");
       return;
     }
-    setError("");
+  
+    if (wins < 0 || losses < 0) {
+      setError("Wins and Losses cannot be negative.");
+      return;
+    }
 
+    if (wins > 0 || losses > 0 || (wins + losses) > 40) {
+      setError("A college basketball teams play no more than 40 games in a season.");
+      return;
+    }
+  
+    if (top_25 && (rank === null || rank < 1)) {
+      setError("Rank must be between 1 and 25 if the team is in the Top 25.");
+      return;
+    }
+
+    if (top_25 && ( rank > 25)) {
+      setError("Rank must between 1 and 25 if the team is in the Top 25.");
+      return;
+    }
+  
+  
+    setError(""); 
     updateTeam(id, updatedTeam)
       .then(() => {
         setTeams((prevTeams) =>
@@ -65,6 +102,7 @@ const Teams = () => {
       })
       .catch((err) => console.error(err));
   };
+  
 
   return (
     <div className="p-6 bg-base-200 min-h-screen">
