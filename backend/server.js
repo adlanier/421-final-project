@@ -981,7 +981,7 @@ app.get("/get-games", async (req, res) => {
     res.status(200).json({ games: result.rows })
 
   } catch (err) {
-    console.log("Error get games:", err);
+    console.log("Error getting games:", err);
     res.status(500).json({ error: "Unable to get games." });
   }
 })
@@ -992,7 +992,7 @@ app.get("/get-players", async (req, res) => {
     res.status(200).json({ players: result.rows })
 
   } catch (err) {
-    console.log("Error get players:", err);
+    console.log("Error getting players:", err);
     res.status(500).json({ error: "Unable to get players." });
   }
 })
@@ -1003,7 +1003,7 @@ app.get("/get-teams", async (req, res) => {
     res.status(200).json({ teams: result.rows })
 
   } catch (err) {
-    console.log("Error get teams:", err);
+    console.log("Error getting teams:", err);
     res.status(500).json({ error: "Unable to get teams." });
   }
 })
@@ -1014,8 +1014,37 @@ app.get("/get-statistics", async (req, res) => {
     res.status(200).json({ statistics: result.rows })
 
   } catch (err) {
-    console.log("Error get statistics:", err);
+    console.log("Error getting statistics:", err);
     res.status(500).json({ error: "Unable to get statistics." });
+  }
+})
+
+app.delete("/delete-roster/:id", async (req, res) => {
+  /*
+    CREATE PROCEDURE DeleteRoster(t_id INT)
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+      DELETE FROM players WHERE team_id = t_id
+    END
+    $$; 
+  */
+  const { id } = req.params
+  try {
+    const existingRecord = await pool.query(`
+      SELECT * FROM teams WHERE id = $1
+      `, [id]);
+
+    if (existingRecord.rows.length === 0) {
+      return res.status(404).json({ error: "Team not found" })
+    }
+
+    await pool.query(`CALL DeleteRoster($1)`, [id])
+    res.status(200).json({ message: "Roster deleted successfully" })
+
+  } catch (err) {
+    console.log("Error deleting roster:", err)
+    res.status(500).json({ error: "Unable to delete roster." })
   }
 })
 
