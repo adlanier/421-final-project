@@ -1,5 +1,11 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, Link, Navigate } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Link,
+  Navigate,
+} from "react-router-dom";
 import Teams from "./components/Teams";
 import Players from "./components/Players";
 import Games from "./components/Games";
@@ -9,7 +15,7 @@ import TransferPlayer from "./components/TransferPlayer";
 const App = () => {
   return (
     <Router>
-      <div className="bg-gray-50 min-h-screen flex flex-col">
+      <div data-theme="light" className="bg-gray-50 min-h-screen flex flex-col">
         {/* Nav Bar */}
         <header className="bg-white shadow-md">
           <div className="flex justify-between items-center h-16 px-4">
@@ -79,7 +85,9 @@ const App = () => {
             <Route path="/transfer" element={<TransferPlayer />} />
             <Route
               path="*"
-              element={<h1 className="text-center text-2xl">404 - Page Not Found</h1>}
+              element={
+                <h1 className="text-center text-2xl">404 - Page Not Found</h1>
+              }
             />
           </Routes>
         </main>
