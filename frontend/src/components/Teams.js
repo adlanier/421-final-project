@@ -1,18 +1,19 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
-import { fetchTeams, addTeam, deleteTeam, deleteRoster } from "../api/api";
+import {
+  fetchTeams,
+  addTeam,
+  updateTeam,
+  deleteTeam,
+  deleteRoster,
+} from "../api/api";
 
+// Teams Component
 const Teams = () => {
   const [teams, setTeams] = useState([]);
-  const [newTeam, setNewTeam] = useState({
-    name: "",
-    division: 1,
-    wins: 0,
-    losses: 0,
-    top_25: false,
-    rank: null,
-  });
-  const [error, setError] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [activeTeam, setActiveTeam] = useState(null);
 
   useEffect(() => {
     fetchTeams()
@@ -20,38 +21,32 @@ const Teams = () => {
       .catch((err) => console.error(err));
   }, []);
 
-  const handleAddTeam = () => {
-    const { name, division, wins, losses, rank, top_25 } = newTeam;
-
-    if (!name || !division) {
-      setError("Name and Division are required fields.");
-      return;
-    }
-
-    if (wins < 0 || losses < 0) {
-      setError("Wins and Losses cannot be negative.");
-      return;
-    }
-
-    if (wins + losses > 40) {
-      setError(
-        "A college basketball team cannot play more than 40 games in a season."
-      );
-      return;
-    }
-
-    if (top_25 && (rank === null || rank < 1 || rank > 25)) {
-      setError("Rank must be between 1 and 25 if the team is in the Top 25.");
-      return;
-    }
-
-    setError("");
-    addTeam(newTeam)
-      .then(() => fetchTeams().then((res) => setTeams(res.data.teams)))
-      .catch((err) => console.error(err));
+  const startEditingTeam = (team) => {
+    setActiveTeam(team);
+    setIsEditing(true);
   };
 
-  const handleDeleteTeam = (id) => {
+  const updateTeamField = (e) => {
+    const { name, value } = e.target;
+    setActiveTeam((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const saveTeam = (e) => {
+    e.preventDefault();
+    if (isAdding) {
+      addTeam(activeTeam)
+        .then(() => fetchTeams().then((res) => setTeams(res.data.teams)))
+        .catch((err) => console.error(err));
+    } else {
+      updateTeam(activeTeam.id, activeTeam)
+        .then(() => fetchTeams().then((res) => setTeams(res.data.teams)))
+        .catch((err) => console.error(err));
+    }
+    setIsAdding(false);
+    setIsEditing(false);
+  };
+
+  const deleteExistingTeam = (id) => {
     deleteTeam(id)
       .then(() =>
         setTeams((prevTeams) => prevTeams.filter((team) => team.id !== id))
@@ -59,6 +54,53 @@ const Teams = () => {
       .catch((err) => console.error(err));
   };
 
+  const startAddingTeam = () => {
+    setActiveTeam({
+      name: "",
+      division: 1,
+      wins: 0,
+      losses: 0,
+      top_25: false,
+      rank: null,
+    });
+    setIsAdding(true);
+  };
+
+  return (
+    <div className="p-6 bg-gray-100 min-h-screen">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold text-center mb-8">Teams</h1>
+        <div className="flex justify-end mb-6">
+          <button
+            onClick={startAddingTeam}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          >
+            Add Team
+          </button>
+        </div>
+        <TeamTable
+          teams={teams}
+          onEdit={startEditingTeam}
+          onDelete={deleteExistingTeam}
+        />
+        {(isEditing || isAdding) && (
+          <TeamModal
+            team={activeTeam}
+            onFieldChange={updateTeamField}
+            onSave={saveTeam}
+            onCancel={() => {
+              setIsEditing(false);
+              setIsAdding(false);
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Team Table
+const TeamTable = ({ teams, onEdit, onDelete }) => {
   const handleDeleteRoster = (id) => {
     deleteRoster(id)
       .then(() => {
@@ -71,177 +113,176 @@ const Teams = () => {
   };
 
   return (
-    <div className="p-6 bg-base-200 min-h-screen">
-      <div className="max-w-5xl mx-auto">
-        <h1 className="text-3xl font-bold text-center mb-6">Teams</h1>
-        {error && (
-          <div className="alert alert-error shadow-lg mb-4">
-            <div>
-              <span>{error}</span>
-            </div>
-          </div>
-        )}
-
-        <div className="overflow-x-auto mb-6">
-          <table className="table w-full bg-white shadow-md rounded-lg">
-            <thead className="bg-gray-100 text-gray-600 uppercase text-sm">
-              <tr>
-                <th className="py-2 px-4 text-left">Name</th>
-                <th className="py-2 px-4 text-left">Division</th>
-                <th className="py-2 px-4 text-left">Wins</th>
-                <th className="py-2 px-4 text-left">Losses</th>
-                <th className="py-2 px-4 text-left">Top 25</th>
-                <th className="py-2 px-4 text-left">Rank</th>
-                <th className="py-2 px-4"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {teams.map((team, index) => (
-                <tr
-                  key={team.id}
-                  className={index % 2 === 0 ? "bg-gray-50" : "bg-gray-100"}
+    <div className="overflow-x-auto mb-10">
+      <table className="table-auto w-full bg-white shadow-lg rounded-lg">
+        <thead className="bg-gray-200">
+          <tr>
+            <th className="px-4 py-2 text-left font-medium">Name</th>
+            <th className="px-4 py-2 text-left font-medium">Division</th>
+            <th className="px-4 py-2 text-left font-medium">Wins</th>
+            <th className="px-4 py-2 text-left font-medium">Losses</th>
+            <th className="px-4 py-2 text-left font-medium">Rank</th>
+            <th className="px-4 py-2 text-right"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {teams.map((team, index) => (
+            <tr
+              key={team.id}
+              className={`${
+                index % 2 === 0 ? "bg-gray-50" : "bg-white"
+              } hover:bg-gray-100`}
+            >
+              <td
+                className="px-4 py-2 cursor-pointer"
+                onClick={() => onEdit(team)}
+              >
+                {team.name}
+              </td>
+              <td
+                className="px-4 py-2 cursor-pointer"
+                onClick={() => onEdit(team)}
+              >
+                {team.division}
+              </td>
+              <td
+                className="px-4 py-2 cursor-pointer"
+                onClick={() => onEdit(team)}
+              >
+                {team.wins}
+              </td>
+              <td
+                className="px-4 py-2 cursor-pointer"
+                onClick={() => onEdit(team)}
+              >
+                {team.losses}
+              </td>
+              <td
+                className="px-4 py-2 cursor-pointer"
+                onClick={() => onEdit(team)}
+              >
+                {team.rank || "N/A"}
+              </td>
+              <td className="px-4 py-2 text-right flex space-x-2">
+                <button
+                  onClick={() => onDelete(team.id)}
+                  className="text-red-500 hover:text-red-700"
                 >
-                  <td className="py-2 px-4">{team.name}</td>
-                  <td className="py-2 px-4">{team.division}</td>
-                  <td className="py-2 px-4">{team.wins}</td>
-                  <td className="py-2 px-4">{team.losses}</td>
-                  <td className="py-2 px-4">{team.top_25 ? "Yes" : "No"}</td>
-                  <td className="py-2 px-4">{team.rank || "N/A"}</td>
-                  <td className="py-2 px-4 flex space-x-2 items-center">
-                    <button
-                      className="btn btn-ghost btn-xs text-red-500"
-                      onClick={() => handleDeleteTeam(team.id)}
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M19 7l-.867 12.142A2 2 0 0116.136 21H7.864a2 2 0 01-1.997-1.858L5 7m5 4v6m4-6v6M6 7h12M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"
-                        />
-                      </svg>
-                    </button>
-                    <button
-                      className="btn btn-xs btn-error"
-                      onClick={() => handleDeleteRoster(team.id)}
-                    >
-                      Delete Roster
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M19 7l-.867 12.142A2 2 0 0116.136 21H7.864a2 2 0 01-1.997-1.858L5 7m5 4v6m4-6v6M6 7h12M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"
+                    />
+                  </svg>
+                </button>
+                <button
+                  className="btn btn-xs btn-error"
+                  onClick={() => handleDeleteRoster(team.id)}
+                >
+                  Delete Roster
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
 
-        <div className="card bg-base-100 shadow-md p-6">
-          <h3 className="text-xl font-bold mb-4">Add a New Team</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">
-                <span className="label-text">Name</span>
-              </label>
-              <input
-                className="input input-bordered"
-                type="text"
-                placeholder="Name"
-                value={newTeam.name}
-                onChange={(e) =>
-                  setNewTeam({ ...newTeam, name: e.target.value })
-                }
-              />
-            </div>
-            <div>
-              <label className="label">
-                <span className="label-text">Division</span>
-              </label>
-              <input
-                className="input input-bordered"
-                type="number"
-                placeholder="Division"
-                value={newTeam.division}
-                onChange={(e) =>
-                  setNewTeam({
-                    ...newTeam,
-                    division: parseInt(e.target.value, 10),
-                  })
-                }
-              />
-            </div>
-            <div>
-              <label className="label">
-                <span className="label-text">Wins</span>
-              </label>
-              <input
-                className="input input-bordered"
-                type="number"
-                placeholder="Wins"
-                value={newTeam.wins}
-                onChange={(e) =>
-                  setNewTeam({ ...newTeam, wins: parseInt(e.target.value, 10) })
-                }
-              />
-            </div>
-            <div>
-              <label className="label">
-                <span className="label-text">Losses</span>
-              </label>
-              <input
-                className="input input-bordered"
-                type="number"
-                placeholder="Losses"
-                value={newTeam.losses}
-                onChange={(e) =>
-                  setNewTeam({
-                    ...newTeam,
-                    losses: parseInt(e.target.value, 10),
-                  })
-                }
-              />
-            </div>
-            <label className="flex items-center space-x-2 col-span-2">
-              <input
-                type="checkbox"
-                className="checkbox"
-                checked={newTeam.top_25}
-                onChange={(e) =>
-                  setNewTeam({ ...newTeam, top_25: e.target.checked })
-                }
-              />
-              <span>Top 25</span>
+// Team Modal
+const TeamModal = ({ team, onFieldChange, onSave, onCancel }) => {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white shadow-lg rounded-lg p-8 max-w-lg w-full">
+        <h3 className="text-2xl font-bold mb-6 text-gray-700">
+          {team.id ? "Edit Team" : "Add Team"}
+        </h3>
+        <form className="space-y-6" onSubmit={onSave}>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Name
             </label>
-            {newTeam.top_25 && (
-              <div>
-                <label className="label">
-                  <span className="label-text">Rank</span>
-                </label>
-                <input
-                  className="input input-bordered"
-                  type="number"
-                  placeholder="Rank"
-                  value={newTeam.rank || ""}
-                  onChange={(e) =>
-                    setNewTeam({
-                      ...newTeam,
-                      rank: e.target.value
-                        ? parseInt(e.target.value, 10)
-                        : null,
-                    })
-                  }
-                />
-              </div>
-            )}
+            <input
+              type="text"
+              name="name"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={team.name || ""}
+              onChange={onFieldChange}
+            />
           </div>
-          <button className="btn btn-primary mt-4" onClick={handleAddTeam}>
-            Add Team
-          </button>
-        </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Division
+            </label>
+            <input
+              type="number"
+              name="division"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={team.division || ""}
+              onChange={onFieldChange}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Wins
+            </label>
+            <input
+              type="number"
+              name="wins"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={team.wins || ""}
+              onChange={onFieldChange}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Losses
+            </label>
+            <input
+              type="number"
+              name="losses"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={team.losses || ""}
+              onChange={onFieldChange}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Rank
+            </label>
+            <input
+              type="number"
+              name="rank"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={team.rank || ""}
+              onChange={onFieldChange}
+            />
+          </div>
+          <div className="flex justify-end space-x-4">
+            <button
+              type="button"
+              className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+              onClick={onCancel}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Save
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
