@@ -11,6 +11,8 @@ import Players from "./components/Players";
 import Games from "./components/Games";
 import Statistics from "./components/Statistics";
 import TransferPlayer from "./components/TransferPlayer";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const App = () => {
   return (
@@ -91,6 +93,9 @@ const App = () => {
             />
           </Routes>
         </main>
+
+        {/* Toast Container */}
+        <ToastContainer position="top-right" autoClose={3000} />
       </div>
     </Router>
   );

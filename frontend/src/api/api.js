@@ -30,7 +30,8 @@ export const updateGame = (gameId, gameData) =>
   axios.put(`${API_BASE_URL}/update-game/${gameId}`, gameData);
 
 // Statistics API
-export const fetchStatistics = () => axios.get(`${API_BASE_URL}/get-statistics`);
+export const fetchStatistics = () =>
+  axios.get(`${API_BASE_URL}/get-statistics`);
 export const addStatistic = (statData) =>
   axios.post(`${API_BASE_URL}/add-statistic`, statData);
 export const deleteStatistic = (statId) =>
@@ -46,7 +47,14 @@ export const transferPlayer = async (playerId, newTeamId) => {
     });
     return response.data;
   } catch (error) {
-    console.error("Error transferring player:", error.response?.data || error.message);
+    console.error(
+      "Error transferring player:",
+      error.response?.data || error.message
+    );
     throw error;
   }
 };
+
+// Roster API
+export const deleteRoster = (teamId) =>
+  axios.delete(`${API_BASE_URL}/delete-roster/${teamId}`);
