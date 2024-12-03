@@ -10,7 +10,7 @@ const Players = () => {
     jersey_num: null,
     height_inches: null,
     weight_lbs: null,
-    class: 2023,
+    class: null,
     injured: false,
     team_id: null,
   });
@@ -85,8 +85,9 @@ const Players = () => {
       .catch((err) => console.error(err));
   };
 
+  // 
   const handleUpdatePlayer = (id, updatedPlayer) => {
-    const { name, jersey_num, height_inches, weight_lbs , class: playerClass, team_id } = updatedPlayer;
+    const { name, jersey_num, height_inches, weight_lbs, class: playerClass, team_id } = updatedPlayer;
   
     if (!name || !team_id) {
       setError("Name and Team are required fields.");
@@ -102,35 +103,38 @@ const Players = () => {
       setError("Class must be 2016 or later.");
       return;
     }
-    
-    if ( height_inches < 0 || weight_lbs  < 0 ) {
+  
+    if (height_inches < 0 || weight_lbs < 0) {
       setError("Player height or weight cannot be negative");
       return;
-     }
-
-    // Check if a player with the same jersey number exists on the same team
+    }
+  
+    // Local duplicate check excluding the current player
     const existingPlayer = players.find(
-      (player) => player.team_id === team_id && player.jersey_num === jersey_num
+      (player) =>
+        player.team_id === team_id &&
+        player.jersey_num === jersey_num &&
+        player.id !== id
     );
-
+  
     if (existingPlayer) {
-    setError(
-        `Jersey number ${jersey_num} is already taken by another player on this team.`
-      );
+      setError(`Jersey number ${jersey_num} is already taken by another player on this team.`);
       return;
     }
-      setError(""); 
+  
+    setError(""); // Clear any existing errors
     updatePlayer(id, updatedPlayer)
       .then(() => {
-        setPlayers((prevPlayers) =>
-          prevPlayers.map((player) =>
-            player.id === id ? { ...player, ...updatedPlayer } : player
-          )
-        );
+        fetchPlayers().then((res) => setPlayers(res.data.players)); // Sync with the backend
         setEditMode(null);
       })
-      .catch((err) => console.error(err));
+      .catch((err) => {
+        console.error(err);
+        setError("Failed to update player. Please try again.");
+      });
   };
+  
+  
   
 
   const getTeamName = (team_id) => {

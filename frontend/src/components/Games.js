@@ -288,12 +288,6 @@ const Games = () => {
                   </div>
                   <div className="flex space-x-2">
                     <button
-                      className="btn btn-info btn-sm"
-                      onClick={() => setEditMode(game.id)}
-                    >
-                      Edit
-                    </button>
-                    <button
                       className="btn btn-error btn-sm"
                       onClick={() => handleDeleteGame(game.id)}
                     >

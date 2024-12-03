@@ -652,45 +652,32 @@ app.put("/update-team/:id", async (req, res) => {
 });
 
 app.put("/update-player/:id", async (req, res) => {
-  //TODO: The values used to update this record should be sent in the request body
-  // from a form. Make a form in the frontend
   const { id } = req.params;
+  const {
+    name,
+    position,
+    jersey_num,
+    height_inches,
+    weight_lbs,
+    class: playerClass,
+    injured,
+    team_id,
+  } = req.body;
+
   try {
-    const {
-      name,
-      position,
-      jersey_num,
-      height_inches,
-      weight_lbs,
-      class: playerClass,
-      injured,
-      team_id
-    } = req.body;
-
-
     if (!name) {
       return res.status(400).json({ error: "Name is required" });
     }
 
-    if (jersey_num !== undefined && (typeof jersey_num !== 'number' || jersey_num < 0 || jersey_num > 99)) {
-      return res.status(400).json({ error: "Jersey number must be an integer between 0 and 99." });
+    const existingRecord = await pool.query("SELECT * FROM players WHERE id = $1", [id]);
+    if (existingRecord.rows.length === 0) {
+      return res.status(404).json({ error: "Player not found" });
     }
 
-    if (height_inches < 0 || weight_lbs < 0 ) {
-      return res.status(400).json({ error: "Player height and weight cannot be negative" });
-    }
-
-    if (playerClass !== undefined && (typeof playerClass !== 'number' || playerClass < 2016)) {
-      return res.status(400).json({ error: "Class must be an integer of 2016 or later." });
-    }
-
-    if (team_id !== undefined && (typeof team_id !== 'number' || team_id <= 0)) {
-      return res.status(400).json({ error: "team_id must be a positive integer." });
-    }
-
+    // Duplicate check excluding the player being updated
     const duplicateCheck = await pool.query(
-      "SELECT * FROM players WHERE team_id = $1 AND jersey_num = $2",
-      [team_id, jersey_num]
+      "SELECT * FROM players WHERE team_id = $1 AND jersey_num = $2 AND id != $3",
+      [team_id, jersey_num, id]
     );
 
     if (duplicateCheck.rows.length > 0) {
@@ -699,102 +686,84 @@ app.put("/update-player/:id", async (req, res) => {
       });
     }
 
-    const existingRecord = await pool.query(`
-      SELECT * FROM players WHERE id = $1
-      `, [id]);
+    const result = await pool.query(
+      `UPDATE players
+       SET name = $1, position = $2, jersey_num = $3, height_inches = $4,
+           weight_lbs = $5, class = $6, injured = $7, team_id = $8
+       WHERE id = $9 RETURNING *`,
+      [name, position, jersey_num, height_inches, weight_lbs, playerClass, injured, team_id, id]
+    );
 
-    if (existingRecord.rows.length === 0) {
-      return res.status(404).json({ error: "player not found" })
-    }
-
-    const result = await pool.query(`
-      UPDATE players
-      SET 
-        name = $1,
-        position = $2,
-        jersey_num = $3,
-        height_inches = $4,
-        weight_lbs = $5,
-        class = $6,
-        injured = $7,
-        team_id = $8
-      WHERE id = $9
-      RETURNING *`, [name, position, jersey_num, height_inches, weight_lbs, playerClass, injured, team_id, id]);
-   
-
-    res.status(200).json({
-      message: "Player updated successfully",
-      team: result.rows[0]
-    });
+    res.status(200).json({ message: "Player updated successfully", player: result.rows[0] });
   } catch (err) {
-    console.log(err);
-
-    // SQL Error code: Foreign key violation
-    if (err.code === '23503') {
-      return res.status(400).json({ error: "Invalid team_id. The referenced team does not exist." });
-    }
-    res.status(500).json({ error: "Unable to update player" })
+    console.error(err);
+    res.status(500).json({ error: "Unable to update player" });
   }
-
 });
+
 
 app.put("/update-game/:id", async (req, res) => {
   const { id } = req.params;
-  try {
-    const {
-      scheduled_date,
-      location,
-      home_score,
-      away_score,
-      home_team_id,
-      away_team_id
-    } = req.body;
+  const {
+    scheduled_date,
+    location,
+    home_score,
+    away_score,
+    home_team_id,
+    away_team_id,
+  } = req.body;
 
+  try {
+    // Validation for required fields
     if (
       !scheduled_date ||
       home_score === undefined ||
       away_score === undefined ||
-      !home_team_id || !away_team_id
+      !home_team_id ||
+      !away_team_id
     ) {
       return res.status(400).json({
-        error: "Scheduled date, home_score, away_score, home_team_id, and away_team_id are required fields."
-      })
+        error:
+          "Scheduled date, home_score, away_score, home_team_id, and away_team_id are required fields.",
+      });
     }
 
+    // Prevent home and away teams from being the same
     if (home_team_id === away_team_id) {
       return res.status(400).json({
         error: "Home and Away teams cannot be the same.",
       });
     }
 
-    const teamConflict = await pool.query(
+    // Validate no conflicting games on the same day, excluding the current game
+    const conflictCheck = await pool.query(
       `SELECT * FROM games
-       WHERE DATE(scheduled_date) = $1
-       AND (home_team_id = $2 OR away_team_id = $2 OR home_team_id = $3 OR away_team_id = $3)`,
-      [scheduled_date, home_team_id, away_team_id]
+       WHERE scheduled_date = $1
+       AND id != $2
+       AND (home_team_id = $3 OR away_team_id = $3 OR home_team_id = $4 OR away_team_id = $4)`,
+      [scheduled_date, id, home_team_id, away_team_id]
     );
 
-    if (teamConflict.rows.length > 0) {
-      return res.status(400).json({ error: "A team cannot be scheduled for two games on the same day." });
-    }
-
-    if (
-      home_score < 0 ||
-      away_score < 0
-    ) {
+    if (conflictCheck.rows.length > 0) {
       return res.status(400).json({
-        error: "Scores cannot be negative"
+        error: "A team cannot be scheduled for two games on the same day.",
       });
     }
 
-    const existingRecord = await pool.query(`
-      SELECT * FROM games WHERE id = $1
-      `, [id]);
-
-    if (existingRecord.rows.length === 0) {
-      return res.status(404).json({ error: "game not found" })
+    // Validation for negative scores
+    if (home_score < 0 || away_score < 0) {
+      return res.status(400).json({
+        error: "Scores cannot be negative",
+      });
     }
 
+    // Check if the game exists
+    const existingRecord = await pool.query(`SELECT * FROM games WHERE id = $1`, [id]);
+    if (existingRecord.rows.length === 0) {
+      return res.status(404).json({ error: "Game not found" });
+    }
+
+    // Perform the update
     const result = await pool.query(
       `
       UPDATE games
@@ -808,27 +777,14 @@ app.put("/update-game/:id", async (req, res) => {
       WHERE id = $7
       RETURNING *;
       `,
-      [
-        scheduled_date,
-        location,
-        home_score,
-        away_score,
-        home_team_id,
-        away_team_id,
-        id
-      ]
+      [scheduled_date, location, home_score, away_score, home_team_id, away_team_id, id]
     );
-    
 
     res.status(200).json({
       message: "Game updated successfully",
-      game: result.rows[0]
+      game: result.rows[0],
     });
-
   } catch (err) {
-    if (err.code === '23503') {
-      return res.status(400).json({ error: "Invalid team_id. The referenced team does not exist." });
-    }
     console.error("Error updating game:", err);
     res.status(500).json({ error: "Unable to update game." });
   }
@@ -836,144 +792,120 @@ app.put("/update-game/:id", async (req, res) => {
 
 app.put("/update-statistic/:id", async (req, res) => {
   const { id } = req.params;
-  try {
-    const {
-      points,
-      assists,
-      rebounds,
-      steals,
-      blocks,
-      minutes,
-      fouls,
-      turnovers,
-      fg_pct,
-      three_p_pct,
-      ft_pct,
-      player_id,
-      game_id
-    } = req.body;
+  const {
+    points,
+    assists,
+    rebounds,
+    steals,
+    blocks,
+    minutes,
+    fouls,
+    turnovers,
+    fg_pct,
+    three_p_pct,
+    ft_pct,
+    game_id,
+  } = req.body;
 
-    if (!player_id || !game_id) {
+  try {
+    // Fetch the existing statistic
+    const existingRecord = await pool.query(
+      "SELECT * FROM statistics WHERE id = $1",
+      [id]
+    );
+
+    if (existingRecord.rows.length === 0) {
+      return res.status(404).json({ error: "Statistic not found." });
+    }
+
+    // Use the current player_id from the database
+    const { player_id } = existingRecord.rows[0];
+
+    // Validation for required fields
+    if (!game_id) {
       return res.status(400).json({
-        error: "player_id and game_id are required fields."
+        error: "game_id is a required field.",
       });
     }
 
-    if (points < 0 || assists < 0 || rebounds < 0 || steals < 0 || blocks < 0 || minutes < 0 || fouls < 0 || turnovers < 0 || fg_pct < 0 || three_p_pct < 0 || ft_pct < 0) {
-      return res.status(400).json({
-        error: "Player stats cannot be negative"
-      });
+    // Validation for invalid values
+    if (
+      points < 0 ||
+      assists < 0 ||
+      rebounds < 0 ||
+      steals < 0 ||
+      blocks < 0 ||
+      minutes < 0 ||
+      fouls < 0 ||
+      turnovers < 0 ||
+      fg_pct < 0 ||
+      three_p_pct < 0 ||
+      ft_pct < 0
+    ) {
+      return res.status(400).json({ error: "Player stats cannot be negative" });
     }
 
     if (fg_pct > 100 || three_p_pct > 100 || ft_pct > 100) {
       return res.status(400).json({
-        error: "Player percentage stats cannot be greater than 100"
+        error: "Player percentage stats cannot be greater than 100",
       });
     }
 
     if (points > 0 && fg_pct === 0 && ft_pct === 0) {
-      setError("If a player has points either FG% or FT% must be greater than 0.");
-      return;
+      return res.status(400).json({
+        error: "If a player has points, either FG% or FT% must be greater than 0.",
+      });
     }
 
     if (minutes > 40) {
       return res.status(400).json({
-        error: "Player minutes cannot be longer than 40 minutes"
+        error: "Player minutes cannot exceed 40 minutes.",
       });
     }
 
     if (fouls > 5) {
       return res.status(400).json({
-        error: "Player fouls out after 5 fouls"
+        error: "Player fouls out after 5 fouls.",
       });
     }
 
-    const duplicateCheck = await pool.query(
-      "SELECT * FROM statistics WHERE player_id = $1 AND game_id = $2",
-      [player_id, game_id]
+    // Perform the update without changing the player_id
+    const result = await pool.query(
+      `UPDATE statistics
+       SET points = $1, assists = $2, rebounds = $3, steals = $4, blocks = $5,
+           minutes = $6, fouls = $7, turnovers = $8, fg_pct = $9, 
+           three_p_pct = $10, ft_pct = $11, game_id = $12
+       WHERE id = $13
+       RETURNING *`,
+      [
+        points !== undefined ? points : 0,
+        assists !== undefined ? assists : 0,
+        rebounds !== undefined ? rebounds : 0,
+        steals !== undefined ? steals : 0,
+        blocks !== undefined ? blocks : 0,
+        minutes !== undefined ? minutes : 0,
+        fouls !== undefined ? fouls : 0,
+        turnovers !== undefined ? turnovers : 0,
+        fg_pct !== undefined ? fg_pct : 0.0,
+        three_p_pct !== undefined ? three_p_pct : 0.0,
+        ft_pct !== undefined ? ft_pct : 0.0,
+        game_id,
+        id,
+      ]
     );
-
-    if (duplicateCheck.rows.length > 0) {
-      return res.status(400).json({
-        error: "This player already has statistics recorded for this game.",
-      });
-    }
-
-    // player - team validation
-    const game = await pool.query("SELECT home_team_id, away_team_id FROM games WHERE id = $1", [game_id]);
-    const player = await pool.query("SELECT team_id FROM players WHERE id = $1", [player_id]);
-
-    if (game.rows.length === 0 || player.rows.length === 0) {
-      return res.status(400).json({
-        error: "Invalid game or player selection.",
-      });
-    }
-
-    const { home_team_id, away_team_id } = game.rows[0];
-    const { team_id } = player.rows[0];
-
-    if (team_id !== home_team_id && team_id !== away_team_id) {
-      return res.status(400).json({
-        error: "Player must belong to one of the teams playing in the game.",
-      });
-    }
-
-    const existingRecord = await pool.query(`
-      SELECT * FROM statistics WHERE id = $1
-      `, [id]);
-
-    if (existingRecord.rows.length === 0) {
-      return res.status(404).json({ error: "statistic not found" })
-    }
-
-    const result = await pool.query(`
-      UPDATE statistics
-      SET
-        points = $1,
-        assists = $2,
-        rebounds = $3,
-        steals = $4,
-        blocks = $5,
-        minutes = $6,
-        fouls = $7,
-        turnovers = $8,
-        fg_pct = $9,
-        three_p_pct = $10,
-        ft_pct = $11,
-        player_id = $12,
-        game_id = $13
-      WHERE id = $14
-      RETURNING *;
-    `, [
-      points !== undefined ? points : 0,
-      assists !== undefined ? assists : 0,
-      rebounds !== undefined ? rebounds : 0,
-      steals !== undefined ? steals : 0,
-      blocks !== undefined ? blocks : 0,
-      minutes !== undefined ? minutes : 0,
-      fouls !== undefined ? fouls : 0,
-      turnovers !== undefined ? turnovers : 0,
-      fg_pct !== undefined ? fg_pct : 0.0,
-      three_p_pct !== undefined ? three_p_pct : 0.0,
-      ft_pct !== undefined ? ft_pct : 0.0,
-      player_id,
-      game_id,
-      id
-    ]);
-    
 
     res.status(200).json({
       message: "Statistic updated successfully",
-      statistic: result.rows[0]
+      statistic: result.rows[0],
     });
   } catch (err) {
-    if (err.code === '23503') {
-      return res.status(400).json({ error: "Invalid team_id or player_id. The referenced team or player does not exist." });
-    }
-    console.log("Error updating statistic:", err);
+    console.error("Error updating statistic:", err);
     res.status(500).json({ error: "Unable to update statistic." });
   }
 });
+
+
+
 
 app.get("/get-games", async (req, res) => {
   try {

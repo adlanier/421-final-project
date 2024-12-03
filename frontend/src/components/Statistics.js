@@ -410,12 +410,7 @@ const Statistics = () => {
                     </p>
                   </div>
                   <div className="flex space-x-2">
-                    <button
-                      className="btn btn-info btn-sm"
-                      onClick={() => setEditMode(stat.id)}
-                    >
-                      Edit
-                    </button>
+                  
                     <button
                       className="btn btn-error btn-sm"
                       onClick={() => handleDeleteStatistic(stat.id)}
